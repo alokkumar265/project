@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cameraService } from '@/services/CameraService';
 import { imageProcessingService } from '@/services/ImageProcessingService';
 import { apiService } from '@/services/ApiService';
-import { API_CONFIG } from '@/config/apiConfig';
+import { API_CONFIG } from '@/config/api';
 
 interface AnalysisResult {
   leafArea: number;
