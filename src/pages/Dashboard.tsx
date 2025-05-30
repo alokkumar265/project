@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useDropzone } from 'react-dropzone';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Camera, Image, Loader, AlertCircle, Info, Database, Users, Printer, Sun, Moon } from 'lucide-react';
@@ -12,6 +13,7 @@ import { cameraService } from '@/services/CameraService';
 import { imageProcessingService } from '@/services/ImageProcessingService';
 import { apiService } from '@/services/ApiService';
 import { API_CONFIG } from '@/config/api';
+import { AnalysisResult } from '@/types/analysis';
 
 interface DiseaseResult {
     predicted_class: string;
@@ -20,54 +22,227 @@ interface DiseaseResult {
   warning?: string;
 }
 
-interface AnalysisResult {
-  leafArea: number;
-  disease: DiseaseResult;
-  measurements: {
-    perimeter: number;
-    width: number;
-    height: number;
-    aspectRatio: number;
-    circularity?: number;
-    symmetry?: number;
-  };
-  colorMetrics: {
-    averageGreen: number;
-    averageRed: number;
-    averageBlue: number;
-    colorVariance: number;
-    redGreenRatio?: number;
-    blueGreenRatio?: number;
-    chlorophyllIndex?: number;
-  };
-  healthIndicators: {
-    colorUniformity: number;
-    edgeRegularity: number;
-    textureComplexity: number;
-    overallHealthScore?: number;
-    stressLevel?: number;
-  };
-  nutrientIndicators?: {
-    nitrogenContent: number;
-    chlorophyllContent: number;
-    waterContent: number;
-  };
-  growthStage?: {
-    stage: string;
-    confidence: number;
-  };
-  calibration: {
-    referenceArea: number;
-    pixelRatio: number;
-    formula: string;
-  };
-}
+// Add this helper function at the top of the file, after the imports
+const formatDiseaseName = (disease: string): string => {
+  return disease
+    .replace(/_/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .replace(/\(/g, ' (')
+    .replace(/\)/g, ') ')
+    .trim();
+};
+
+// Add these helper functions after the imports
+const getHealthStatus = (score: number): { color: string; label: string } => {
+  if (score >= 80) return { color: 'text-green-600', label: 'Excellent' };
+  if (score >= 60) return { color: 'text-yellow-600', label: 'Good' };
+  if (score >= 40) return { color: 'text-orange-600', label: 'Fair' };
+  return { color: 'text-red-600', label: 'Poor' };
+};
+
+const getStressLevel = (level: number): { color: string; label: string } => {
+  if (level <= 20) return { color: 'text-green-600', label: 'Low' };
+  if (level <= 40) return { color: 'text-yellow-600', label: 'Moderate' };
+  if (level <= 60) return { color: 'text-orange-600', label: 'High' };
+  return { color: 'text-red-600', label: 'Severe' };
+};
+
+const generatePrintContent = (analysisResult: AnalysisResult) => {
+  return `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>Leaf Analysis Report</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; }
+          .header { text-align: center; margin-bottom: 20px; }
+          .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+          .card { border: 1px solid #ddd; padding: 15px; border-radius: 8px; }
+          .card-title { font-size: 18px; font-weight: bold; margin-bottom: 10px; }
+          .metric { margin-bottom: 10px; }
+          .metric-label { font-size: 14px; color: #666; }
+          .metric-value { font-size: 24px; font-weight: bold; }
+          .metric-description { font-size: 12px; color: #888; }
+          .warning { color: #f59e0b; }
+          .danger { color: #ef4444; }
+          .success { color: #22c55e; }
+          @media print {
+            .no-print { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>Leaf Analysis Report</h1>
+          <p>Generated on ${new Date().toLocaleString()}</p>
+        </div>
+        
+        <div class="grid">
+          <div class="card">
+            <div class="card-title">Calibration Details</div>
+            <div class="metric">
+              <div class="metric-label">Reference Area</div>
+              <div class="metric-value">${analysisResult.calibration.referenceArea} cm²</div>
+              <div class="metric-description">Calibration reference object area</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Pixel Ratio</div>
+              <div class="metric-value">${analysisResult.calibration.pixelRatio.toFixed(6)} cm²/pixel</div>
+              <div class="metric-description">Conversion factor for measurements</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Formula Used</div>
+              <div class="metric-value" style="font-size: 14px;">${analysisResult.calibration.formula}</div>
+              <div class="metric-description">Area calculation method</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Leaf Measurements</div>
+            <div class="metric">
+              <div class="metric-label">Area</div>
+              <div class="metric-value">${analysisResult.leafArea.toFixed(2)} cm²</div>
+              <div class="metric-description">Total leaf surface area</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Perimeter</div>
+              <div class="metric-value">${analysisResult.measurements.perimeter.toFixed(1)} cm</div>
+              <div class="metric-description">Total edge length</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Width × Height</div>
+              <div class="metric-value">${analysisResult.measurements.width.toFixed(1)} × ${analysisResult.measurements.height.toFixed(1)} cm</div>
+              <div class="metric-description">Maximum dimensions</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Aspect Ratio</div>
+              <div class="metric-value">${analysisResult.measurements.aspectRatio.toFixed(2)}</div>
+              <div class="metric-description">Width to height ratio</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Circularity</div>
+              <div class="metric-value ${analysisResult.measurements.circularity && analysisResult.measurements.circularity < 0.5 ? 'warning' : 'success'}">
+                ${analysisResult.measurements.circularity?.toFixed(2) || 'N/A'}
+              </div>
+              <div class="metric-description">Shape regularity (0-1)</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Health Indicators</div>
+            <div class="metric">
+              <div class="metric-label">Overall Health Score</div>
+              <div class="metric-value ${getHealthStatus(analysisResult.healthIndicators.overallHealthScore).color}">
+                ${analysisResult.healthIndicators.overallHealthScore.toFixed(1)}%
+              </div>
+              <div class="metric-description">${getHealthStatus(analysisResult.healthIndicators.overallHealthScore).label}</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Stress Level</div>
+              <div class="metric-value ${getStressLevel(analysisResult.healthIndicators.stressLevel).color}">
+                ${analysisResult.healthIndicators.stressLevel.toFixed(1)}%
+              </div>
+              <div class="metric-description">${getStressLevel(analysisResult.healthIndicators.stressLevel).label}</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Color Uniformity</div>
+              <div class="metric-value ${analysisResult.healthIndicators.colorUniformity * 100 > 90 ? 'success' : 'warning'}">
+                ${(analysisResult.healthIndicators.colorUniformity * 100).toFixed(1)}%
+              </div>
+              <div class="metric-description">Consistency of leaf color</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Edge Regularity</div>
+              <div class="metric-value ${analysisResult.healthIndicators.edgeRegularity * 100 < 10 ? 'danger' : 'warning'}">
+                ${(analysisResult.healthIndicators.edgeRegularity * 100).toFixed(1)}%
+              </div>
+              <div class="metric-description">Smoothness of leaf edges</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Texture Complexity</div>
+              <div class="metric-value ${analysisResult.healthIndicators.textureComplexity * 100 < 10 ? 'warning' : 'success'}">
+                ${(analysisResult.healthIndicators.textureComplexity * 100).toFixed(1)}%
+              </div>
+              <div class="metric-description">Surface pattern variation</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Nutrient Status</div>
+            <div class="metric">
+              <div class="metric-label">Nitrogen Content</div>
+              <div class="metric-value">${analysisResult.nutrientIndicators?.nitrogenContent.toFixed(1) || 'N/A'}%</div>
+              <div class="metric-description">Estimated nitrogen level</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Chlorophyll Content</div>
+              <div class="metric-value">${analysisResult.nutrientIndicators?.chlorophyllContent.toFixed(1) || 'N/A'}%</div>
+              <div class="metric-description">Estimated chlorophyll level</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Water Content</div>
+              <div class="metric-value">${analysisResult.nutrientIndicators?.waterContent.toFixed(1) || 'N/A'}%</div>
+              <div class="metric-description">Estimated water level</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Growth Stage</div>
+            <div class="metric">
+              <div class="metric-label">Stage</div>
+              <div class="metric-value">${analysisResult.growthStage?.stage || 'N/A'}</div>
+              <div class="metric-description">Current growth phase</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Confidence</div>
+              <div class="metric-value">${analysisResult.growthStage?.confidence.toFixed(1) || 'N/A'}%</div>
+              <div class="metric-description">Stage prediction reliability</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Disease Prediction</div>
+            <div class="metric">
+              <div class="metric-label">Predicted Disease</div>
+              <div class="metric-value danger">${formatDiseaseName(analysisResult.disease.predicted_class)}</div>
+              <div class="metric-description">Primary disease detected</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Confidence</div>
+              <div class="metric-value">${(analysisResult.disease.confidence * 100).toFixed(1)}%</div>
+              <div class="metric-description">Prediction reliability</div>
+            </div>
+            ${analysisResult.disease.warning ? `
+              <div class="metric">
+                <div class="metric-value warning">${analysisResult.disease.warning}</div>
+              </div>
+            ` : ''}
+            <div class="metric">
+              <div class="metric-label">Top Predictions:</div>
+              ${analysisResult.disease.top_3_predictions ? Object.entries(analysisResult.disease.top_3_predictions).map(([disease, confidence]) => `
+                <div style="display: flex; justify-content: space-between; margin-top: 5px;">
+                  <span>${formatDiseaseName(disease)}</span>
+                  <span>${(confidence * 100).toFixed(1)}%</span>
+                </div>
+              `).join('') : ''}
+            </div>
+          </div>
+        </div>
+
+        <div class="no-print" style="margin-top: 20px; text-align: center;">
+          <button onclick="window.print()">Print Report</button>
+        </div>
+      </body>
+    </html>
+  `;
+};
 
 const Dashboard: React.FC = () => {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
-  const [analysisProgress, setAnalysisProgress] = useState<number>(0);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisProgress, setAnalysisProgress] = useState<number>(0);
   const [referenceArea, setReferenceArea] = useState<string>('1');
   const [isCalibrated, setIsCalibrated] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<string>('analysis');
@@ -204,39 +379,46 @@ const Dashboard: React.FC = () => {
         } else {
           // Check API health
           console.log('Checking API health...');
-          const healthCheck = await apiService.checkHealth();
-          console.log('API health check result:', healthCheck);
+          try {
+            const healthCheck = await apiService.checkHealth();
+            console.log('API health check result:', healthCheck);
 
-          if (healthCheck.status !== 'healthy') {
-            throw new Error('API is not healthy');
-          }
+            if (healthCheck.status !== 'healthy') {
+              throw new Error('API is not healthy');
+            }
 
-          // Make prediction
-          console.log('Sending image for prediction...');
-          const prediction = await apiService.predictDisease(file);
-          console.log('Prediction result:', prediction);
+            // Make prediction
+            console.log('Sending image for prediction...');
+            const prediction = await apiService.predictDisease(file);
+            console.log('Prediction result:', prediction);
 
             diseaseResult = {
-            predicted_class: prediction.predicted_class || 'N/A',
-            confidence: prediction.confidence || 0,
-            top_3_predictions: prediction.top_3_predictions || {},
-            warning: prediction.warning
-          };
+              predicted_class: prediction.predicted_class || 'N/A',
+              confidence: prediction.confidence || 0,
+              top_3_predictions: prediction.top_3_predictions || {},
+              warning: prediction.warning
+            };
 
-          if (prediction.warning) {
-            console.warn('Prediction warning:', prediction.warning);
-            toast.warning(prediction.warning);
-          }
+            if (prediction.warning) {
+              console.warn('Prediction warning:', prediction.warning);
+              toast.warning(prediction.warning);
+            }
 
-          // Show success message if prediction is good
-          if (diseaseResult.confidence >= API_CONFIG.MIN_CONFIDENCE) {
-            const confidencePercent = (diseaseResult.confidence * 100).toFixed(2);
-            const message = `Disease detected: ${diseaseResult.predicted_class} (${confidencePercent}% confidence)`;
-            console.log('Prediction success:', message);
-            toast.success(message);
-        } else {
-            console.warn('Low confidence prediction:', diseaseResult);
-            toast.warning('Low confidence prediction. Please try with a clearer image.');
+            // Show success message if prediction is good
+            if (diseaseResult.confidence >= API_CONFIG.MIN_CONFIDENCE) {
+              const confidencePercent = (diseaseResult.confidence * 100).toFixed(2);
+              const message = `Disease detected: ${diseaseResult.predicted_class} (${confidencePercent}% confidence)`;
+              console.log('Prediction success:', message);
+              toast.success(message);
+            } else {
+              console.warn('Low confidence prediction:', diseaseResult);
+              toast.warning('Low confidence prediction. Please try with a clearer image.');
+            }
+          } catch (apiError) {
+            console.error('API error:', apiError);
+            const errorMessage = apiError instanceof Error ? apiError.message : 'Failed to connect to prediction service';
+            toast.error(errorMessage);
+            diseaseResult.warning = errorMessage;
           }
         }
       } catch (error) {
@@ -321,8 +503,7 @@ const Dashboard: React.FC = () => {
           width: result.leafWidth,
           height: result.leafHeight,
           aspectRatio: result.leafAspectRatio,
-          circularity: additionalMetrics.circularity,
-          symmetry: result.leafSymmetry
+          circularity: additionalMetrics.circularity
         },
         colorMetrics: {
           averageGreen: result.leafColorMetrics.averageGreen,
@@ -362,207 +543,30 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const handlePrint = () => {
+  const handlePrint = useCallback(() => {
     if (!analysisResult) {
-      toast.error('No analysis result to print.');
+      toast.error('No analysis results to print');
       return;
     }
     
-    try {
     const printWindow = window.open('', '_blank');
-      if (!printWindow) {
-        throw new Error('Failed to open print window');
-      }
-
-    const printContent = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Leaf Analysis Report</title>
-          <style>
-            body { 
-              font-family: Arial, sans-serif; 
-              padding: 20px;
-              position: relative;
-            }
-            .header { text-align: center; margin-bottom: 30px; }
-            .section { margin-bottom: 20px; }
-            .section-title { font-weight: bold; margin-bottom: 10px; }
-            .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-            .item { margin-bottom: 10px; }
-            .label { color: #666; }
-            .value { font-weight: bold; }
-            .image { max-width: 100%; margin: 20px 0; }
-            .footer { 
-              margin-top: 30px; 
-              text-align: center; 
-              font-size: 12px; 
-              color: #666;
-              border-top: 1px solid #eee;
-              padding-top: 20px;
-            }
-            .copyright {
-              margin-top: 10px;
-              font-size: 11px;
-              color: #888;
-            }
-            .developers {
-              margin-top: 5px;
-              font-style: italic;
-            }
-            @media print {
-              body { padding: 0; }
-              .no-print { display: none; }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h1>Leaf Analysis Report</h1>
-            <p>Generated on ${new Date().toLocaleString()}</p>
-          </div>
-
-          <div class="section">
-            <h2 class="section-title">Leaf Image</h2>
-            <img src="${selectedImage}" alt="Analyzed Leaf" class="image" />
-          </div>
-
-          <div class="section">
-            <h2 class="section-title">Calibration Details</h2>
-            <div class="grid">
-              <div class="item">
-                <span class="label">Reference Area:</span>
-                <span class="value">${analysisResult.calibration.referenceArea} cm²</span>
-              </div>
-              <div class="item">
-                <span class="label">Pixel Ratio:</span>
-                <span class="value">${analysisResult.calibration.pixelRatio.toFixed(6)} cm²/pixel</span>
-              </div>
-              <div class="item">
-                <span class="label">Formula Used:</span>
-                <span class="value">${analysisResult.calibration.formula}</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="section">
-            <h2 class="section-title">Analysis Results</h2>
-            <div class="grid">
-              <div class="item">
-                <span class="label">Leaf Area:</span>
-                <span class="value">${analysisResult.leafArea.toFixed(2)} cm²</span>
-              </div>
-              <div class="item">
-                <span class="label">Disease Prediction:</span>
-                <span class="value">${analysisResult.disease.predicted_class}</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="section">
-            <h2 class="section-title">Measurements</h2>
-            <div class="grid">
-              <div class="item">
-                <span class="label">Perimeter:</span>
-                <span class="value">${analysisResult.measurements.perimeter.toFixed(1)} cm</span>
-              </div>
-              <div class="item">
-                <span class="label">Width:</span>
-                <span class="value">${analysisResult.measurements.width.toFixed(1)} cm</span>
-              </div>
-              <div class="item">
-                <span class="label">Height:</span>
-                <span class="value">${analysisResult.measurements.height.toFixed(1)} cm</span>
-              </div>
-              <div class="item">
-                <span class="label">Aspect Ratio:</span>
-                <span class="value">${analysisResult.measurements.aspectRatio.toFixed(2)}</span>
-              </div>
-                <div className="flex justify-between">
-                  <span className="label">Circularity</span>
-                  <span className="value">{analysisResult.measurements.circularity?.toFixed(2)}</span>
-                </div>
-            </div>
-          </div>
-
-          <div class="section">
-            <h2 class="section-title">Health Indicators</h2>
-            <div class="grid">
-              <div class="item">
-                  <span class="label">Overall Health Score</span>
-                  <span class="value">${analysisResult.healthIndicators.overallHealthScore?.toFixed(1)}%</span>
-                </div>
-                <div class="item">
-                  <span class="label">Stress Level</span>
-                  <span class="value">${analysisResult.healthIndicators.stressLevel?.toFixed(1)}%</span>
-                </div>
-                <div class="item">
-                  <span class="label">Color Uniformity</span>
-                <span class="value">${(analysisResult.healthIndicators.colorUniformity * 100).toFixed(0)}%</span>
-              </div>
-              <div class="item">
-                  <span class="label">Edge Regularity</span>
-                <span class="value">${(analysisResult.healthIndicators.edgeRegularity * 100).toFixed(0)}%</span>
-              </div>
-              <div class="item">
-                  <span class="label">Texture Complexity</span>
-                <span class="value">${(analysisResult.healthIndicators.textureComplexity * 100).toFixed(0)}%</span>
-              </div>
-            </div>
-          </div>
-
-            <div class="section">
-              <h2 class="section-title">Nutrient Status</h2>
-              <div class="grid">
-                <div class="item">
-                  <span class="label">Nitrogen Content</span>
-                  <span class="value">${analysisResult.nutrientIndicators?.nitrogenContent.toFixed(1)}%</span>
-                </div>
-                <div class="item">
-                  <span class="label">Chlorophyll Content</span>
-                  <span class="value">${analysisResult.nutrientIndicators?.chlorophyllContent.toFixed(1)}%</span>
-                </div>
-                <div class="item">
-                  <span class="label">Water Content</span>
-                  <span class="value">${analysisResult.nutrientIndicators?.waterContent.toFixed(1)}%</span>
-                </div>
-              </div>
-            </div>
-
-            <div class="section">
-              <h2 class="section-title">Growth Stage</h2>
-              <div class="grid">
-                <div class="item">
-                  <span class="label">Stage</span>
-                  <span class="value">${analysisResult.growthStage?.stage}</span>
-                </div>
-                <div class="item">
-                  <span class="label">Confidence</span>
-                  <span class="value">${analysisResult.growthStage?.confidence}%</span>
-                </div>
-              </div>
-            </div>
-
-          <div class="footer">
-            <p>Generated by LeafAI Analysis System</p>
-            <p class="copyright">&copy; ${new Date().getFullYear()} LeafAI. All rights reserved.</p>
-            <p class="developers">Developed by Alok, Sharique, Arif</p>
-          </div>
-
-          <div class="no-print" style="text-align: center; margin-top: 20px;">
-            <button onclick="window.print()">Print Report</button>
-          </div>
-        </body>
-      </html>
-    `;
-
-    printWindow.document.write(printContent);
-    printWindow.document.close();
-    } catch (error) {
-      console.error('Print error:', error);
-      toast.error('Failed to print. Please try again.');
+    if (!printWindow) {
+      toast.error('Failed to open print window. Please check your popup settings.');
+      return;
     }
-  };
+
+    printWindow.document.write(generatePrintContent(analysisResult));
+    printWindow.document.close();
+    
+    // Wait for content to load before printing
+    printWindow.onload = () => {
+      printWindow.print();
+      // Close the window after printing
+      printWindow.onafterprint = () => {
+        printWindow.close();
+      };
+    };
+  }, [analysisResult]);
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 p-4 sm:p-8 transition-colors duration-200">
@@ -707,185 +711,251 @@ const Dashboard: React.FC = () => {
                       </div>
                     )}
                     {analysisResult && (
-                      <div className="space-y-4 sm:space-y-6">
-                        {/* Analysis Results Content */}
-                        <div className="grid grid-cols-2 gap-4">
-                          <Card>
-                            <CardHeader>
-                              <CardTitle>Leaf Measurements</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                              <div className="space-y-2">
-                                <div className="flex justify-between">
-                                  <span>Area</span>
-                                  <span className="font-medium">{analysisResult.leafArea.toFixed(2)} cm²</span>
-                        </div>
-                                <div className="flex justify-between">
-                                  <span>Perimeter</span>
-                                  <span className="font-medium">{analysisResult.measurements.perimeter.toFixed(1)} cm</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span>Width</span>
-                                  <span className="font-medium">{analysisResult.measurements.width.toFixed(1)} cm</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span>Height</span>
-                                  <span className="font-medium">{analysisResult.measurements.height.toFixed(1)} cm</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span>Aspect Ratio</span>
-                                  <span className="font-medium">{analysisResult.measurements.aspectRatio.toFixed(2)}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span>Circularity</span>
-                                  <span className="font-medium">{analysisResult.measurements.circularity?.toFixed(2)}</span>
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-
-                          <Card>
-                            <CardHeader>
-                              <CardTitle>Health Indicators</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                              <div className="space-y-2">
-                                <div className="flex justify-between">
-                                  <span>Overall Health Score</span>
-                                  <span className="font-medium">{analysisResult.healthIndicators.overallHealthScore?.toFixed(1)}%</span>
-                        </div>
-                                <div className="flex justify-between">
-                                  <span>Stress Level</span>
-                                  <span className="font-medium">{analysisResult.healthIndicators.stressLevel?.toFixed(1)}%</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span>Color Uniformity</span>
-                                  <span className="font-medium">{analysisResult.healthIndicators.colorUniformity.toFixed(1)}%</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span>Edge Regularity</span>
-                                  <span className="font-medium">{analysisResult.healthIndicators.edgeRegularity.toFixed(1)}%</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span>Texture Complexity</span>
-                                  <span className="font-medium">{analysisResult.healthIndicators.textureComplexity.toFixed(1)}%</span>
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-
-                          <Card>
-                            <CardHeader>
-                              <CardTitle>Nutrient Status</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                              <div className="space-y-2">
-                                <div className="flex justify-between">
-                                  <span>Nitrogen Content</span>
-                                  <span className="font-medium">{analysisResult.nutrientIndicators?.nitrogenContent.toFixed(1)}%</span>
-                          </div>
-                                <div className="flex justify-between">
-                                  <span>Chlorophyll Content</span>
-                                  <span className="font-medium">{analysisResult.nutrientIndicators?.chlorophyllContent.toFixed(1)}%</span>
-                          </div>
-                                <div className="flex justify-between">
-                                  <span>Water Content</span>
-                                  <span className="font-medium">{analysisResult.nutrientIndicators?.waterContent.toFixed(1)}%</span>
-                          </div>
-                          </div>
-                            </CardContent>
-                          </Card>
-
-                          <Card>
-                            <CardHeader>
-                              <CardTitle>Growth Stage</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                              <div className="space-y-2">
-                                <div className="flex justify-between">
-                                  <span>Stage</span>
-                                  <span className="font-medium">{analysisResult.growthStage?.stage}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span>Confidence</span>
-                                  <span className="font-medium">{analysisResult.growthStage?.confidence}%</span>
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div className="bg-slate-50 dark:bg-slate-700/50 p-4 rounded-lg">
-                            <h4 className="font-semibold text-slate-900 dark:text-slate-100 mb-3 text-sm sm:text-base">Color Metrics</h4>
-                        <div className="space-y-2">
-                              <div className="flex justify-between items-center">
-                                <span className="text-sm text-slate-600 dark:text-slate-400">Average Green</span>
-                                <span className="font-medium text-slate-900 dark:text-slate-100">{analysisResult.colorMetrics.averageGreen.toFixed(1)}</span>
-                            </div>
-                              <div className="flex justify-between items-center">
-                                <span className="text-sm text-slate-600 dark:text-slate-400">Average Red</span>
-                                <span className="font-medium text-slate-900 dark:text-slate-100">{analysisResult.colorMetrics.averageRed.toFixed(1)}</span>
-                            </div>
-                              <div className="flex justify-between items-center">
-                                <span className="text-sm text-slate-600 dark:text-slate-400">Average Blue</span>
-                                <span className="font-medium text-slate-900 dark:text-slate-100">{analysisResult.colorMetrics.averageBlue.toFixed(1)}</span>
-                            </div>
-                              <div className="flex justify-between items-center">
-                                <span className="text-sm text-slate-600 dark:text-slate-400">Color Variance</span>
-                                <span className="font-medium text-slate-900 dark:text-slate-100">{analysisResult.colorMetrics.colorVariance.toFixed(2)}</span>
-                              </div>
-                              <div className="flex justify-between items-center">
-                                <span className="text-sm text-slate-600 dark:text-slate-400">Red/Green Ratio</span>
-                                <span className="font-medium text-slate-900 dark:text-slate-100">{analysisResult.colorMetrics.redGreenRatio?.toFixed(2)}</span>
-                              </div>
-                              <div className="flex justify-between items-center">
-                                <span className="text-sm text-slate-600 dark:text-slate-400">Blue/Green Ratio</span>
-                                <span className="font-medium text-slate-900 dark:text-slate-100">{analysisResult.colorMetrics.blueGreenRatio?.toFixed(2)}</span>
-                              </div>
-                              <div className="flex justify-between items-center">
-                                <span className="text-sm text-slate-600 dark:text-slate-400">Chlorophyll Index</span>
-                                <span className="font-medium text-slate-900 dark:text-slate-100">{analysisResult.colorMetrics.chlorophyllIndex?.toFixed(2)}</span>
-                              </div>
-                          </div>
-                        </div>
-
-                          <div className="bg-slate-50 dark:bg-slate-700/50 p-4 rounded-lg">
-                            <h4 className="font-semibold text-slate-900 dark:text-slate-100 mb-3 text-sm sm:text-base">Health Indicators</h4>
-                            <div className="space-y-2">
-                              <div className="flex justify-between items-center">
-                                <span className="text-sm text-slate-600 dark:text-slate-400">Color Uniformity</span>
-                                <span className="font-medium text-slate-900 dark:text-slate-100">{(analysisResult.healthIndicators.colorUniformity * 100).toFixed(0)}%</span>
-                              </div>
-                              <div className="flex justify-between items-center">
-                                <span className="text-sm text-slate-600 dark:text-slate-400">Edge Regularity</span>
-                                <span className="font-medium text-slate-900 dark:text-slate-100">{(analysisResult.healthIndicators.edgeRegularity * 100).toFixed(0)}%</span>
-                              </div>
-                              <div className="flex justify-between items-center">
-                                <span className="text-sm text-slate-600 dark:text-slate-400">Texture Complexity</span>
-                                <span className="font-medium text-slate-900 dark:text-slate-100">{(analysisResult.healthIndicators.textureComplexity * 100).toFixed(0)}%</span>
-                              </div>
-                              <div className="flex justify-between items-center">
-                                <span className="text-sm text-slate-600 dark:text-slate-400">Overall Health Score</span>
-                                <span className="font-medium text-slate-900 dark:text-slate-100">{analysisResult.healthIndicators.overallHealthScore?.toFixed(1)}%</span>
-                              </div>
-                              <div className="flex justify-between items-center">
-                                <span className="text-sm text-slate-600 dark:text-slate-400">Stress Level</span>
-                                <span className="font-medium text-slate-900 dark:text-slate-100">{analysisResult.healthIndicators.stressLevel?.toFixed(1)}%</span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
+                      <div className="space-y-4">
                         <div className="flex justify-end">
-                        <Button
-                          onClick={handlePrint}
-                            variant="outline"
-                            className="text-sm sm:text-base"
-                        >
-                          <Printer className="mr-2 h-4 w-4" />
+                          <Button onClick={handlePrint} className="bg-blue-600 hover:bg-blue-700">
+                            <Printer className="w-4 h-4 mr-2" />
                             Print Report
-                        </Button>
+                          </Button>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
+                          <Card className="bg-white dark:bg-slate-800 h-full">
+                            <CardHeader className="pb-2">
+                              <CardTitle className="text-lg">Calibration Details</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="space-y-6">
+                                <div>
+                                  <p className="text-sm font-medium">Reference Area</p>
+                                  <p className="text-2xl font-bold">{analysisResult.calibration.referenceArea} cm²</p>
+                                  <p className="text-xs text-slate-500">Calibration reference object area</p>
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium">Pixel Ratio</p>
+                                  <p className="text-2xl font-bold">{analysisResult.calibration.pixelRatio.toFixed(6)} cm²/pixel</p>
+                                  <p className="text-xs text-slate-500">Conversion factor for measurements</p>
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium">Formula Used</p>
+                                  <p className="text-2xl font-bold text-sm">{analysisResult.calibration.formula}</p>
+                                  <p className="text-xs text-slate-500">Area calculation method</p>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+
+                          <Card className="bg-white dark:bg-slate-800 h-full">
+                            <CardHeader className="pb-2">
+                              <CardTitle className="text-lg">Leaf Measurements</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="space-y-6">
+                                <div>
+                                  <p className="text-sm font-medium">Area</p>
+                                  <p className="text-2xl font-bold">{analysisResult.leafArea.toFixed(2)} cm²</p>
+                                  <p className="text-xs text-slate-500">Total leaf surface area</p>
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium">Perimeter</p>
+                                  <p className="text-2xl font-bold">{analysisResult.measurements.perimeter.toFixed(1)} cm</p>
+                                  <p className="text-xs text-slate-500">Total edge length</p>
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium">Width × Height</p>
+                                  <p className="text-2xl font-bold">{analysisResult.measurements.width.toFixed(1)} × {analysisResult.measurements.height.toFixed(1)} cm</p>
+                                  <p className="text-xs text-slate-500">Maximum dimensions</p>
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium">Aspect Ratio</p>
+                                  <p className="text-2xl font-bold">{analysisResult.measurements.aspectRatio.toFixed(2)}</p>
+                                  <p className="text-xs text-slate-500">Width to height ratio</p>
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium">Circularity</p>
+                                  <p className={`text-2xl font-bold ${analysisResult.measurements.circularity && analysisResult.measurements.circularity < 0.5 ? 'text-yellow-600' : 'text-green-600'}`}>
+                                    {analysisResult.measurements.circularity?.toFixed(2) || 'N/A'}
+                                  </p>
+                                  <p className="text-xs text-slate-500">Shape regularity (0-1)</p>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+
+                          <Card className="bg-white dark:bg-slate-800 h-full">
+                            <CardHeader className="pb-2">
+                              <CardTitle className="text-lg">Health Indicators</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="space-y-6">
+                                <div>
+                                  <p className="text-sm font-medium">Overall Health Score</p>
+                                  {analysisResult.healthIndicators.overallHealthScore && (
+                                    <>
+                                      <p className={`text-2xl font-bold ${getHealthStatus(analysisResult.healthIndicators.overallHealthScore).color}`}>
+                                        {analysisResult.healthIndicators.overallHealthScore.toFixed(1)}%
+                                      </p>
+                                      <p className="text-xs text-slate-500">
+                                        {getHealthStatus(analysisResult.healthIndicators.overallHealthScore).label}
+                                      </p>
+                                    </>
+                                  )}
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium">Stress Level</p>
+                                  {analysisResult.healthIndicators.stressLevel && (
+                                    <>
+                                      <p className={`text-2xl font-bold ${getStressLevel(analysisResult.healthIndicators.stressLevel).color}`}>
+                                        {analysisResult.healthIndicators.stressLevel.toFixed(1)}%
+                                      </p>
+                                      <p className="text-xs text-slate-500">
+                                        {getStressLevel(analysisResult.healthIndicators.stressLevel).label}
+                                      </p>
+                                    </>
+                                  )}
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium">Color Uniformity</p>
+                                  <p className={`text-2xl font-bold ${analysisResult.healthIndicators.colorUniformity * 100 > 90 ? 'text-green-600' : 'text-yellow-600'}`}>
+                                    {(analysisResult.healthIndicators.colorUniformity * 100).toFixed(1)}%
+                                  </p>
+                                  <p className="text-xs text-slate-500">Consistency of leaf color</p>
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium">Edge Regularity</p>
+                                  <p className={`text-2xl font-bold ${analysisResult.healthIndicators.edgeRegularity * 100 < 10 ? 'text-red-600' : 'text-yellow-600'}`}>
+                                    {(analysisResult.healthIndicators.edgeRegularity * 100).toFixed(1)}%
+                                  </p>
+                                  <p className="text-xs text-slate-500">Smoothness of leaf edges</p>
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium">Texture Complexity</p>
+                                  <p className={`text-2xl font-bold ${analysisResult.healthIndicators.textureComplexity * 100 < 10 ? 'text-yellow-600' : 'text-green-600'}`}>
+                                    {(analysisResult.healthIndicators.textureComplexity * 100).toFixed(1)}%
+                                  </p>
+                                  <p className="text-xs text-slate-500">Surface pattern variation</p>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+
+                          <Card className="bg-white dark:bg-slate-800 h-full">
+                            <CardHeader className="pb-2">
+                              <CardTitle className="text-lg">Nutrient Status</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="space-y-4">
+                                <div>
+                                  <p className="text-sm font-medium">Nitrogen Content</p>
+                                  <p className="text-2xl font-bold">{analysisResult.nutrientIndicators?.nitrogenContent.toFixed(1) || 'N/A'}%</p>
+                                  <p className="text-xs text-slate-500">Estimated nitrogen level</p>
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium">Chlorophyll Content</p>
+                                  <p className="text-2xl font-bold">{analysisResult.nutrientIndicators?.chlorophyllContent.toFixed(1) || 'N/A'}%</p>
+                                  <p className="text-xs text-slate-500">Estimated chlorophyll level</p>
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium">Water Content</p>
+                                  <p className="text-2xl font-bold">{analysisResult.nutrientIndicators?.waterContent.toFixed(1) || 'N/A'}%</p>
+                                  <p className="text-xs text-slate-500">Estimated water level</p>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+
+                          <Card className="bg-white dark:bg-slate-800 h-full">
+                            <CardHeader className="pb-2">
+                              <CardTitle className="text-lg">Growth Stage</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="space-y-4">
+                                <div>
+                                  <p className="text-sm font-medium">Stage</p>
+                                  <p className="text-2xl font-bold">{analysisResult.growthStage?.stage || 'N/A'}</p>
+                                  <p className="text-xs text-slate-500">Current growth phase</p>
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium">Confidence</p>
+                                  <p className="text-2xl font-bold">{analysisResult.growthStage?.confidence.toFixed(1) || 'N/A'}%</p>
+                                  <p className="text-xs text-slate-500">Stage prediction reliability</p>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+
+                          <Card className="bg-white dark:bg-slate-800 h-full">
+                            <CardHeader className="pb-2">
+                              <CardTitle className="text-lg">Disease Prediction</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="space-y-4">
+                                <div>
+                                  <p className="text-sm font-medium">Predicted Disease</p>
+                                  <p className="text-2xl font-bold text-red-600">{formatDiseaseName(analysisResult.disease.predicted_class)}</p>
+                                  <p className="text-xs text-slate-500">Primary disease detected</p>
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium">Confidence</p>
+                                  <p className="text-2xl font-bold">{(analysisResult.disease.confidence * 100).toFixed(1)}%</p>
+                                  <p className="text-xs text-slate-500">Prediction reliability</p>
+                                </div>
+                                {analysisResult.disease.warning && (
+                                  <div className="mt-2">
+                                    <p className="text-sm text-yellow-600">{analysisResult.disease.warning}</p>
+                                  </div>
+                                )}
+                                <div className="mt-4">
+                                  <p className="text-sm font-medium">Top Predictions:</p>
+                                  <div className="mt-2 space-y-2">
+                                    {analysisResult.disease.top_3_predictions && Object.entries(analysisResult.disease.top_3_predictions).map(([disease, confidence]) => (
+                                      <div key={disease} className="flex justify-between">
+                                        <span className="text-sm">{formatDiseaseName(disease)}</span>
+                                        <span className="text-sm font-medium">{(confidence * 100).toFixed(1)}%</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+
+                          <Card>
+                            <CardHeader>
+                              <CardTitle>Color Metrics</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <p className="text-sm font-medium">Average Green</p>
+                                  <p className="text-2xl font-bold">{analysisResult.colorMetrics.averageGreen.toFixed(1)}</p>
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium">Average Red</p>
+                                  <p className="text-2xl font-bold">{analysisResult.colorMetrics.averageRed.toFixed(1)}</p>
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium">Average Blue</p>
+                                  <p className="text-2xl font-bold">{analysisResult.colorMetrics.averageBlue.toFixed(1)}</p>
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium">Color Variance</p>
+                                  <p className="text-2xl font-bold">{analysisResult.colorMetrics.colorVariance.toFixed(2)}</p>
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium">Red/Green Ratio</p>
+                                  <p className="text-2xl font-bold">{analysisResult.colorMetrics.redGreenRatio?.toFixed(2) || 'N/A'}</p>
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium">Blue/Green Ratio</p>
+                                  <p className="text-2xl font-bold">{analysisResult.colorMetrics.blueGreenRatio?.toFixed(2) || 'N/A'}</p>
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium">Chlorophyll Index</p>
+                                  <p className="text-2xl font-bold">{analysisResult.colorMetrics.chlorophyllIndex?.toFixed(2) || 'N/A'}</p>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
                         </div>
                       </div>
                     )}
