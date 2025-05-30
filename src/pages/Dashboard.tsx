@@ -165,7 +165,7 @@ const Dashboard: React.FC = () => {
         const formData = new FormData();
         formData.append('file', blob, 'leaf.jpg');
         // Call backend /predict endpoint
-        const predictRes = await fetch('/predict', {
+        const predictRes = await fetch('https://plant-disease-backend-f3gr.onrender.com/predict', {
           method: 'POST',
           body: formData
         });
