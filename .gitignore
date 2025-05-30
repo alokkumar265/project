@@ -34,8 +34,6 @@ ENV/
 *.swo
 
 # Model files
-*.h5
-*.keras
 *.pb
 *.tflite
 *.pt
