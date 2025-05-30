@@ -1,11 +1,31 @@
 services:
   - type: web
-    name: plant-disease-backend
+    name: plant-disease-api
     env: python
-    region: oregon
-    plan: free
-    rootDir: LeafArea_production
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn plant_disease_api:app --host 0.0.0.0 --port 10000
+    startCommand: uvicorn plant_disease_api:app --host 0.0.0.0 --port $PORT --workers 1
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: TF_CPP_MIN_LOG_LEVEL
+        value: "3"
+      - key: TF_ENABLE_ONEDNN_OPTS
+        value: "0"
+      - key: CUDA_VISIBLE_DEVICES
+        value: "-1"
+      - key: TF_FORCE_GPU_ALLOW_GROWTH
+        value: "true"
+      - key: TF_DISABLE_GPU
+        value: "1"
+      - key: TF_USE_CUDNN
+        value: "0"
+      - key: TF_USE_CUBLAS
+        value: "0"
+      - key: TF_USE_CUFFT
+        value: "0"
+      - key: PYTHONUNBUFFERED
+        value: "1"
+    healthCheckPath: /health
     autoDeploy: true
-    envVars: []
+    plan: free
+    numInstances: 1 

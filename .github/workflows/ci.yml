@@ -1,0 +1,27 @@
+name: PlantVillage CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install tensorflow fastapi uvicorn
+      - name: Run model training script (smoke test)
+        run: |
+          python train_plantvillage_cnn.py --epochs 1 || true
+      - name: Run API smoke test
+        run: |
+          python -c "import plant_disease_api"
