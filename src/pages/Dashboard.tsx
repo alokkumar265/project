@@ -14,8 +14,8 @@ import { apiService } from '@/services/ApiService';
 import { API_CONFIG } from '@/config/api';
 
 interface DiseaseResult {
-  predicted_class: string;
-  confidence: number;
+    predicted_class: string;
+    confidence: number;
   top_3_predictions?: Record<string, number>;
   warning?: string;
 }
@@ -28,17 +28,33 @@ interface AnalysisResult {
     width: number;
     height: number;
     aspectRatio: number;
+    circularity?: number;
+    symmetry?: number;
   };
   colorMetrics: {
     averageGreen: number;
     averageRed: number;
     averageBlue: number;
     colorVariance: number;
+    redGreenRatio?: number;
+    blueGreenRatio?: number;
+    chlorophyllIndex?: number;
   };
   healthIndicators: {
     colorUniformity: number;
     edgeRegularity: number;
     textureComplexity: number;
+    overallHealthScore?: number;
+    stressLevel?: number;
+  };
+  nutrientIndicators?: {
+    nitrogenContent: number;
+    chlorophyllContent: number;
+    waterContent: number;
+  };
+  growthStage?: {
+    stage: string;
+    confidence: number;
   };
   calibration: {
     referenceArea: number;
@@ -200,7 +216,7 @@ const Dashboard: React.FC = () => {
           const prediction = await apiService.predictDisease(file);
           console.log('Prediction result:', prediction);
 
-          diseaseResult = {
+            diseaseResult = {
             predicted_class: prediction.predicted_class || 'N/A',
             confidence: prediction.confidence || 0,
             top_3_predictions: prediction.top_3_predictions || {},
@@ -218,7 +234,7 @@ const Dashboard: React.FC = () => {
             const message = `Disease detected: ${diseaseResult.predicted_class} (${confidencePercent}% confidence)`;
             console.log('Prediction success:', message);
             toast.success(message);
-          } else {
+        } else {
             console.warn('Low confidence prediction:', diseaseResult);
             toast.warning('Low confidence prediction. Please try with a clearer image.');
           }
@@ -231,6 +247,72 @@ const Dashboard: React.FC = () => {
       }
 
       // Update analysis result
+      const calculateAdditionalMetrics = (result: any) => {
+        // Calculate circularity
+        const circularity = (4 * Math.PI * result.leafArea) / (result.leafPerimeter * result.leafPerimeter);
+        
+        // Calculate color ratios
+        const redGreenRatio = result.leafColorMetrics.averageRed / result.leafColorMetrics.averageGreen;
+        const blueGreenRatio = result.leafColorMetrics.averageBlue / result.leafColorMetrics.averageGreen;
+        
+        // Calculate chlorophyll index
+        const chlorophyllIndex = (result.leafColorMetrics.averageGreen - result.leafColorMetrics.averageRed) / 
+                                (result.leafColorMetrics.averageGreen + result.leafColorMetrics.averageRed);
+        
+        // Calculate overall health score (weighted average)
+        const healthScore = (
+          result.leafHealthIndicators.colorUniformity * 0.4 +
+          result.leafHealthIndicators.edgeRegularity * 0.3 +
+          result.leafHealthIndicators.textureComplexity * 0.3
+        );
+        
+        // Calculate stress level (0-100)
+        const stressLevel = Math.min(100, Math.max(0, 
+          (redGreenRatio * 40) + // Higher red/green ratio indicates stress
+          ((1 - result.leafHealthIndicators.colorUniformity) * 30) + // Lower color uniformity indicates stress
+          ((1 - result.leafHealthIndicators.edgeRegularity) * 30) // Lower edge regularity indicates stress
+        ));
+        
+        // Estimate nutrient content
+        const nitrogenContent = (result.leafColorMetrics.averageGreen / 255) * 100;
+        const chlorophyllContent = chlorophyllIndex * 100;
+        const waterContent = (result.leafColorMetrics.averageBlue / 255) * 100;
+        
+        // Estimate growth stage based on area and aspect ratio
+        let growthStage = 'Unknown';
+        let growthConfidence = 0;
+        
+        if (result.leafArea < 50) {
+          growthStage = 'Early Growth';
+          growthConfidence = 85;
+        } else if (result.leafArea < 100) {
+          growthStage = 'Mid Growth';
+          growthConfidence = 75;
+        } else {
+          growthStage = 'Mature';
+          growthConfidence = 80;
+        }
+        
+        return {
+          circularity,
+          redGreenRatio,
+          blueGreenRatio,
+          chlorophyllIndex,
+          healthScore,
+          stressLevel,
+          nutrientIndicators: {
+            nitrogenContent,
+            chlorophyllContent,
+            waterContent
+          },
+          growthStage: {
+            stage: growthStage,
+            confidence: growthConfidence
+          }
+        };
+      };
+
+      const additionalMetrics = calculateAdditionalMetrics(result);
       setAnalysisResult({
         leafArea: result.leafArea,
         disease: diseaseResult,
@@ -238,19 +320,28 @@ const Dashboard: React.FC = () => {
           perimeter: result.leafPerimeter,
           width: result.leafWidth,
           height: result.leafHeight,
-          aspectRatio: result.leafAspectRatio
+          aspectRatio: result.leafAspectRatio,
+          circularity: additionalMetrics.circularity,
+          symmetry: result.leafSymmetry
         },
         colorMetrics: {
           averageGreen: result.leafColorMetrics.averageGreen,
           averageRed: result.leafColorMetrics.averageRed,
           averageBlue: result.leafColorMetrics.averageBlue,
-          colorVariance: result.leafColorMetrics.colorVariance
+          colorVariance: result.leafColorMetrics.colorVariance,
+          redGreenRatio: additionalMetrics.redGreenRatio,
+          blueGreenRatio: additionalMetrics.blueGreenRatio,
+          chlorophyllIndex: additionalMetrics.chlorophyllIndex
         },
         healthIndicators: {
           colorUniformity: result.leafHealthIndicators.colorUniformity,
           edgeRegularity: result.leafHealthIndicators.edgeRegularity,
-          textureComplexity: result.leafHealthIndicators.textureComplexity
+          textureComplexity: result.leafHealthIndicators.textureComplexity,
+          overallHealthScore: additionalMetrics.healthScore,
+          stressLevel: additionalMetrics.stressLevel
         },
+        nutrientIndicators: additionalMetrics.nutrientIndicators,
+        growthStage: additionalMetrics.growthStage,
         calibration: {
           referenceArea: parseFloat(referenceArea),
           pixelRatio: result.pixelToCmRatio,
@@ -276,153 +367,197 @@ const Dashboard: React.FC = () => {
       toast.error('No analysis result to print.');
       return;
     }
-
+    
     try {
-      const printWindow = window.open('', '_blank');
+    const printWindow = window.open('', '_blank');
       if (!printWindow) {
         throw new Error('Failed to open print window');
       }
 
-      const printContent = `
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <title>Leaf Analysis Report</title>
-            <style>
-              body { 
-                font-family: Arial, sans-serif; 
-                padding: 20px;
-                position: relative;
-              }
-              .header { text-align: center; margin-bottom: 30px; }
-              .section { margin-bottom: 20px; }
-              .section-title { font-weight: bold; margin-bottom: 10px; }
-              .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-              .item { margin-bottom: 10px; }
-              .label { color: #666; }
-              .value { font-weight: bold; }
-              .image { max-width: 100%; margin: 20px 0; }
-              .footer { 
-                margin-top: 30px; 
-                text-align: center; 
-                font-size: 12px; 
-                color: #666;
-                border-top: 1px solid #eee;
-                padding-top: 20px;
-              }
-              .copyright {
-                margin-top: 10px;
-                font-size: 11px;
-                color: #888;
-              }
-              .developers {
-                margin-top: 5px;
-                font-style: italic;
-              }
-              @media print {
-                body { padding: 0; }
-                .no-print { display: none; }
-              }
-            </style>
-          </head>
-          <body>
-            <div class="header">
-              <h1>Leaf Analysis Report</h1>
-              <p>Generated on ${new Date().toLocaleString()}</p>
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Leaf Analysis Report</title>
+          <style>
+            body { 
+              font-family: Arial, sans-serif; 
+              padding: 20px;
+              position: relative;
+            }
+            .header { text-align: center; margin-bottom: 30px; }
+            .section { margin-bottom: 20px; }
+            .section-title { font-weight: bold; margin-bottom: 10px; }
+            .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+            .item { margin-bottom: 10px; }
+            .label { color: #666; }
+            .value { font-weight: bold; }
+            .image { max-width: 100%; margin: 20px 0; }
+            .footer { 
+              margin-top: 30px; 
+              text-align: center; 
+              font-size: 12px; 
+              color: #666;
+              border-top: 1px solid #eee;
+              padding-top: 20px;
+            }
+            .copyright {
+              margin-top: 10px;
+              font-size: 11px;
+              color: #888;
+            }
+            .developers {
+              margin-top: 5px;
+              font-style: italic;
+            }
+            @media print {
+              body { padding: 0; }
+              .no-print { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>Leaf Analysis Report</h1>
+            <p>Generated on ${new Date().toLocaleString()}</p>
+          </div>
+
+          <div class="section">
+            <h2 class="section-title">Leaf Image</h2>
+            <img src="${selectedImage}" alt="Analyzed Leaf" class="image" />
+          </div>
+
+          <div class="section">
+            <h2 class="section-title">Calibration Details</h2>
+            <div class="grid">
+              <div class="item">
+                <span class="label">Reference Area:</span>
+                <span class="value">${analysisResult.calibration.referenceArea} cm²</span>
+              </div>
+              <div class="item">
+                <span class="label">Pixel Ratio:</span>
+                <span class="value">${analysisResult.calibration.pixelRatio.toFixed(6)} cm²/pixel</span>
+              </div>
+              <div class="item">
+                <span class="label">Formula Used:</span>
+                <span class="value">${analysisResult.calibration.formula}</span>
+              </div>
             </div>
+          </div>
+
+          <div class="section">
+            <h2 class="section-title">Analysis Results</h2>
+            <div class="grid">
+              <div class="item">
+                <span class="label">Leaf Area:</span>
+                <span class="value">${analysisResult.leafArea.toFixed(2)} cm²</span>
+              </div>
+              <div class="item">
+                <span class="label">Disease Prediction:</span>
+                <span class="value">${analysisResult.disease.predicted_class}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <h2 class="section-title">Measurements</h2>
+            <div class="grid">
+              <div class="item">
+                <span class="label">Perimeter:</span>
+                <span class="value">${analysisResult.measurements.perimeter.toFixed(1)} cm</span>
+              </div>
+              <div class="item">
+                <span class="label">Width:</span>
+                <span class="value">${analysisResult.measurements.width.toFixed(1)} cm</span>
+              </div>
+              <div class="item">
+                <span class="label">Height:</span>
+                <span class="value">${analysisResult.measurements.height.toFixed(1)} cm</span>
+              </div>
+              <div class="item">
+                <span class="label">Aspect Ratio:</span>
+                <span class="value">${analysisResult.measurements.aspectRatio.toFixed(2)}</span>
+              </div>
+                <div className="flex justify-between">
+                  <span className="label">Circularity</span>
+                  <span className="value">{analysisResult.measurements.circularity?.toFixed(2)}</span>
+                </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <h2 class="section-title">Health Indicators</h2>
+            <div class="grid">
+              <div class="item">
+                  <span class="label">Overall Health Score</span>
+                  <span class="value">${analysisResult.healthIndicators.overallHealthScore?.toFixed(1)}%</span>
+                </div>
+                <div class="item">
+                  <span class="label">Stress Level</span>
+                  <span class="value">${analysisResult.healthIndicators.stressLevel?.toFixed(1)}%</span>
+                </div>
+                <div class="item">
+                  <span class="label">Color Uniformity</span>
+                <span class="value">${(analysisResult.healthIndicators.colorUniformity * 100).toFixed(0)}%</span>
+              </div>
+              <div class="item">
+                  <span class="label">Edge Regularity</span>
+                <span class="value">${(analysisResult.healthIndicators.edgeRegularity * 100).toFixed(0)}%</span>
+              </div>
+              <div class="item">
+                  <span class="label">Texture Complexity</span>
+                <span class="value">${(analysisResult.healthIndicators.textureComplexity * 100).toFixed(0)}%</span>
+              </div>
+            </div>
+          </div>
 
             <div class="section">
-              <h2 class="section-title">Leaf Image</h2>
-              <img src="${selectedImage}" alt="Analyzed Leaf" class="image" />
-            </div>
-
-            <div class="section">
-              <h2 class="section-title">Calibration Details</h2>
+              <h2 class="section-title">Nutrient Status</h2>
               <div class="grid">
                 <div class="item">
-                  <span class="label">Reference Area:</span>
-                  <span class="value">${analysisResult.calibration.referenceArea} cm²</span>
+                  <span class="label">Nitrogen Content</span>
+                  <span class="value">${analysisResult.nutrientIndicators?.nitrogenContent.toFixed(1)}%</span>
                 </div>
                 <div class="item">
-                  <span class="label">Pixel Ratio:</span>
-                  <span class="value">${analysisResult.calibration.pixelRatio.toFixed(6)} cm²/pixel</span>
+                  <span class="label">Chlorophyll Content</span>
+                  <span class="value">${analysisResult.nutrientIndicators?.chlorophyllContent.toFixed(1)}%</span>
                 </div>
                 <div class="item">
-                  <span class="label">Formula Used:</span>
-                  <span class="value">${analysisResult.calibration.formula}</span>
+                  <span class="label">Water Content</span>
+                  <span class="value">${analysisResult.nutrientIndicators?.waterContent.toFixed(1)}%</span>
                 </div>
               </div>
             </div>
 
             <div class="section">
-              <h2 class="section-title">Analysis Results</h2>
+              <h2 class="section-title">Growth Stage</h2>
               <div class="grid">
                 <div class="item">
-                  <span class="label">Leaf Area:</span>
-                  <span class="value">${analysisResult.leafArea.toFixed(2)} cm²</span>
+                  <span class="label">Stage</span>
+                  <span class="value">${analysisResult.growthStage?.stage}</span>
                 </div>
                 <div class="item">
-                  <span class="label">Disease Prediction:</span>
-                  <span class="value">${analysisResult.disease.predicted_class}</span>
+                  <span class="label">Confidence</span>
+                  <span class="value">${analysisResult.growthStage?.confidence}%</span>
                 </div>
               </div>
             </div>
 
-            <div class="section">
-              <h2 class="section-title">Measurements</h2>
-              <div class="grid">
-                <div class="item">
-                  <span class="label">Perimeter:</span>
-                  <span class="value">${analysisResult.measurements.perimeter.toFixed(1)} cm</span>
-                </div>
-                <div class="item">
-                  <span class="label">Width:</span>
-                  <span class="value">${analysisResult.measurements.width.toFixed(1)} cm</span>
-                </div>
-                <div class="item">
-                  <span class="label">Height:</span>
-                  <span class="value">${analysisResult.measurements.height.toFixed(1)} cm</span>
-                </div>
-                <div class="item">
-                  <span class="label">Aspect Ratio:</span>
-                  <span class="value">${analysisResult.measurements.aspectRatio.toFixed(2)}</span>
-                </div>
-              </div>
-            </div>
+          <div class="footer">
+            <p>Generated by LeafAI Analysis System</p>
+            <p class="copyright">&copy; ${new Date().getFullYear()} LeafAI. All rights reserved.</p>
+            <p class="developers">Developed by Alok, Sharique, Arif</p>
+          </div>
 
-            <div class="section">
-              <h2 class="section-title">Health Indicators</h2>
-              <div class="grid">
-                <div class="item">
-                  <span class="label">Color Uniformity:</span>
-                  <span class="value">${(analysisResult.healthIndicators.colorUniformity * 100).toFixed(0)}%</span>
-                </div>
-                <div class="item">
-                  <span class="label">Edge Regularity:</span>
-                  <span class="value">${(analysisResult.healthIndicators.edgeRegularity * 100).toFixed(0)}%</span>
-                </div>
-                <div class="item">
-                  <span class="label">Texture Complexity:</span>
-                  <span class="value">${(analysisResult.healthIndicators.textureComplexity * 100).toFixed(0)}%</span>
-                </div>
-              </div>
-            </div>
+          <div class="no-print" style="text-align: center; margin-top: 20px;">
+            <button onclick="window.print()">Print Report</button>
+          </div>
+        </body>
+      </html>
+    `;
 
-            <div class="footer">
-              <p>Generated by LeafAI Analysis System</p>
-              <p class="copyright">&copy; ${new Date().getFullYear()} LeafAI. All rights reserved.</p>
-              <p class="developers">Developed by Alok, Sharique, Arif</p>
-            </div>
-
-            <div class="no-print" style="text-align: center; margin-top: 20px;">
-              <button onclick="window.print()">Print Report</button>
-            </div>
-          </body>
-        </html>
-      `;
-
-      printWindow.document.write(printContent);
-      printWindow.document.close();
+    printWindow.document.write(printContent);
+    printWindow.document.close();
     } catch (error) {
       console.error('Print error:', error);
       toast.error('Failed to print. Please try again.');
@@ -535,7 +670,7 @@ const Dashboard: React.FC = () => {
                     </Button>
                     {isCalibrated && (
                       <Alert className="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 text-sm sm:text-base">
-                        Calibration completed successfully
+                          Calibration completed successfully
                       </Alert>
                     )}
                   </CardContent>
@@ -574,78 +709,146 @@ const Dashboard: React.FC = () => {
                     {analysisResult && (
                       <div className="space-y-4 sm:space-y-6">
                         {/* Analysis Results Content */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div className="bg-slate-50 dark:bg-slate-700/50 p-4 rounded-lg">
-                            <h4 className="font-semibold text-slate-900 dark:text-slate-100 mb-3 text-sm sm:text-base">Leaf Measurements</h4>
-                            <div className="space-y-2">
-                              <div className="flex justify-between items-center">
-                                <span className="text-sm text-slate-600 dark:text-slate-400">Area</span>
-                                <span className="font-medium text-slate-900 dark:text-slate-100">{analysisResult.leafArea.toFixed(2)} cm²</span>
+                        <div className="grid grid-cols-2 gap-4">
+                          <Card>
+                            <CardHeader>
+                              <CardTitle>Leaf Measurements</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="space-y-2">
+                                <div className="flex justify-between">
+                                  <span>Area</span>
+                                  <span className="font-medium">{analysisResult.leafArea.toFixed(2)} cm²</span>
+                        </div>
+                                <div className="flex justify-between">
+                                  <span>Perimeter</span>
+                                  <span className="font-medium">{analysisResult.measurements.perimeter.toFixed(1)} cm</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Width</span>
+                                  <span className="font-medium">{analysisResult.measurements.width.toFixed(1)} cm</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Height</span>
+                                  <span className="font-medium">{analysisResult.measurements.height.toFixed(1)} cm</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Aspect Ratio</span>
+                                  <span className="font-medium">{analysisResult.measurements.aspectRatio.toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Circularity</span>
+                                  <span className="font-medium">{analysisResult.measurements.circularity?.toFixed(2)}</span>
+                                </div>
                               </div>
-                              <div className="flex justify-between items-center">
-                                <span className="text-sm text-slate-600 dark:text-slate-400">Perimeter</span>
-                                <span className="font-medium text-slate-900 dark:text-slate-100">{analysisResult.measurements.perimeter.toFixed(1)} cm</span>
-                              </div>
-                              <div className="flex justify-between items-center">
-                                <span className="text-sm text-slate-600 dark:text-slate-400">Width</span>
-                                <span className="font-medium text-slate-900 dark:text-slate-100">{analysisResult.measurements.width.toFixed(1)} cm</span>
-                              </div>
-                              <div className="flex justify-between items-center">
-                                <span className="text-sm text-slate-600 dark:text-slate-400">Height</span>
-                                <span className="font-medium text-slate-900 dark:text-slate-100">{analysisResult.measurements.height.toFixed(1)} cm</span>
-                              </div>
-                              <div className="flex justify-between items-center">
-                                <span className="text-sm text-slate-600 dark:text-slate-400">Aspect Ratio</span>
-                                <span className="font-medium text-slate-900 dark:text-slate-100">{analysisResult.measurements.aspectRatio.toFixed(2)}</span>
-                              </div>
-                            </div>
-                          </div>
+                            </CardContent>
+                          </Card>
 
-                          <div className="bg-slate-50 dark:bg-slate-700/50 p-4 rounded-lg">
-                            <h4 className="font-semibold text-slate-900 dark:text-slate-100 mb-3 text-sm sm:text-base">Disease Analysis</h4>
-                            <div className="space-y-2">
-                              <div className="flex justify-between items-center">
-                                <span className="text-sm text-slate-600 dark:text-slate-400">Predicted Class</span>
-                                <span className="font-medium text-slate-900 dark:text-slate-100">{analysisResult.disease.predicted_class}</span>
+                          <Card>
+                            <CardHeader>
+                              <CardTitle>Health Indicators</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="space-y-2">
+                                <div className="flex justify-between">
+                                  <span>Overall Health Score</span>
+                                  <span className="font-medium">{analysisResult.healthIndicators.overallHealthScore?.toFixed(1)}%</span>
+                        </div>
+                                <div className="flex justify-between">
+                                  <span>Stress Level</span>
+                                  <span className="font-medium">{analysisResult.healthIndicators.stressLevel?.toFixed(1)}%</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Color Uniformity</span>
+                                  <span className="font-medium">{analysisResult.healthIndicators.colorUniformity.toFixed(1)}%</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Edge Regularity</span>
+                                  <span className="font-medium">{analysisResult.healthIndicators.edgeRegularity.toFixed(1)}%</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Texture Complexity</span>
+                                  <span className="font-medium">{analysisResult.healthIndicators.textureComplexity.toFixed(1)}%</span>
+                                </div>
                               </div>
-                              <div className="flex justify-between items-center">
-                                <span className="text-sm text-slate-600 dark:text-slate-400">Confidence</span>
-                                <span className="font-medium text-slate-900 dark:text-slate-100">{(analysisResult.disease.confidence * 100).toFixed(1)}%</span>
-                              </div>
-                              {analysisResult.disease.warning && (
-                                <Alert className="mt-2 bg-yellow-50 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200">
-                                  <AlertCircle className="h-4 w-4" />
-                                  <AlertDescription className="text-xs sm:text-sm">
-                                    {analysisResult.disease.warning}
-                                  </AlertDescription>
-                                </Alert>
-                              )}
-                            </div>
+                            </CardContent>
+                          </Card>
+
+                          <Card>
+                            <CardHeader>
+                              <CardTitle>Nutrient Status</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="space-y-2">
+                                <div className="flex justify-between">
+                                  <span>Nitrogen Content</span>
+                                  <span className="font-medium">{analysisResult.nutrientIndicators?.nitrogenContent.toFixed(1)}%</span>
                           </div>
+                                <div className="flex justify-between">
+                                  <span>Chlorophyll Content</span>
+                                  <span className="font-medium">{analysisResult.nutrientIndicators?.chlorophyllContent.toFixed(1)}%</span>
+                          </div>
+                                <div className="flex justify-between">
+                                  <span>Water Content</span>
+                                  <span className="font-medium">{analysisResult.nutrientIndicators?.waterContent.toFixed(1)}%</span>
+                          </div>
+                          </div>
+                            </CardContent>
+                          </Card>
+
+                          <Card>
+                            <CardHeader>
+                              <CardTitle>Growth Stage</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="space-y-2">
+                                <div className="flex justify-between">
+                                  <span>Stage</span>
+                                  <span className="font-medium">{analysisResult.growthStage?.stage}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Confidence</span>
+                                  <span className="font-medium">{analysisResult.growthStage?.confidence}%</span>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div className="bg-slate-50 dark:bg-slate-700/50 p-4 rounded-lg">
                             <h4 className="font-semibold text-slate-900 dark:text-slate-100 mb-3 text-sm sm:text-base">Color Metrics</h4>
-                            <div className="space-y-2">
+                        <div className="space-y-2">
                               <div className="flex justify-between items-center">
                                 <span className="text-sm text-slate-600 dark:text-slate-400">Average Green</span>
                                 <span className="font-medium text-slate-900 dark:text-slate-100">{analysisResult.colorMetrics.averageGreen.toFixed(1)}</span>
-                              </div>
+                            </div>
                               <div className="flex justify-between items-center">
                                 <span className="text-sm text-slate-600 dark:text-slate-400">Average Red</span>
                                 <span className="font-medium text-slate-900 dark:text-slate-100">{analysisResult.colorMetrics.averageRed.toFixed(1)}</span>
-                              </div>
+                            </div>
                               <div className="flex justify-between items-center">
                                 <span className="text-sm text-slate-600 dark:text-slate-400">Average Blue</span>
                                 <span className="font-medium text-slate-900 dark:text-slate-100">{analysisResult.colorMetrics.averageBlue.toFixed(1)}</span>
-                              </div>
+                            </div>
                               <div className="flex justify-between items-center">
                                 <span className="text-sm text-slate-600 dark:text-slate-400">Color Variance</span>
                                 <span className="font-medium text-slate-900 dark:text-slate-100">{analysisResult.colorMetrics.colorVariance.toFixed(2)}</span>
                               </div>
-                            </div>
+                              <div className="flex justify-between items-center">
+                                <span className="text-sm text-slate-600 dark:text-slate-400">Red/Green Ratio</span>
+                                <span className="font-medium text-slate-900 dark:text-slate-100">{analysisResult.colorMetrics.redGreenRatio?.toFixed(2)}</span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <span className="text-sm text-slate-600 dark:text-slate-400">Blue/Green Ratio</span>
+                                <span className="font-medium text-slate-900 dark:text-slate-100">{analysisResult.colorMetrics.blueGreenRatio?.toFixed(2)}</span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <span className="text-sm text-slate-600 dark:text-slate-400">Chlorophyll Index</span>
+                                <span className="font-medium text-slate-900 dark:text-slate-100">{analysisResult.colorMetrics.chlorophyllIndex?.toFixed(2)}</span>
+                              </div>
                           </div>
+                        </div>
 
                           <div className="bg-slate-50 dark:bg-slate-700/50 p-4 rounded-lg">
                             <h4 className="font-semibold text-slate-900 dark:text-slate-100 mb-3 text-sm sm:text-base">Health Indicators</h4>
@@ -662,19 +865,27 @@ const Dashboard: React.FC = () => {
                                 <span className="text-sm text-slate-600 dark:text-slate-400">Texture Complexity</span>
                                 <span className="font-medium text-slate-900 dark:text-slate-100">{(analysisResult.healthIndicators.textureComplexity * 100).toFixed(0)}%</span>
                               </div>
+                              <div className="flex justify-between items-center">
+                                <span className="text-sm text-slate-600 dark:text-slate-400">Overall Health Score</span>
+                                <span className="font-medium text-slate-900 dark:text-slate-100">{analysisResult.healthIndicators.overallHealthScore?.toFixed(1)}%</span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <span className="text-sm text-slate-600 dark:text-slate-400">Stress Level</span>
+                                <span className="font-medium text-slate-900 dark:text-slate-100">{analysisResult.healthIndicators.stressLevel?.toFixed(1)}%</span>
+                              </div>
                             </div>
                           </div>
                         </div>
 
                         <div className="flex justify-end">
-                          <Button
-                            onClick={handlePrint}
+                        <Button
+                          onClick={handlePrint}
                             variant="outline"
                             className="text-sm sm:text-base"
-                          >
-                            <Printer className="mr-2 h-4 w-4" />
+                        >
+                          <Printer className="mr-2 h-4 w-4" />
                             Print Report
-                          </Button>
+                        </Button>
                         </div>
                       </div>
                     )}
