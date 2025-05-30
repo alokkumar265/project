@@ -171,16 +171,26 @@ const Dashboard: React.FC = () => {
         });
         if (predictRes.ok) {
           const data = await predictRes.json();
+          console.log('Disease prediction response:', data); // Debug log
           if (data && (data.predicted_class || data.class)) {
             diseaseResult = {
               predicted_class: data.predicted_class || data.class,
               confidence: data.confidence !== undefined ? data.confidence : 0
             };
+          } else {
+            toast.error('Prediction response missing class/confidence.');
           }
         } else {
           // If backend returns error, try to parse error message
-          const errorData = await predictRes.json().catch(() => null);
+          const errorText = await predictRes.text();
+          let errorData;
+          try {
+            errorData = JSON.parse(errorText);
+          } catch (e) {
+            errorData = { detail: errorText };
+          }
           toast.error(errorData?.detail || 'Disease prediction failed.');
+          console.error('Disease prediction error:', errorData);
         }
       } catch (err) {
         toast.error('Disease prediction failed. Please try again.');
