@@ -133,7 +133,13 @@ export class ImageProcessingService {
         }
 
         // Calculate final metrics
-        const leafArea = greenPixels * this.pixelToCmRatio;
+        // Use correct formula: Leaf Area = Green Pixels × (Calibration Area ÷ Red Pixels)
+        let leafArea = 0;
+        if (redPixels > 0) {
+          leafArea = greenPixels * (this.calibrationArea / redPixels);
+        } else {
+          leafArea = 0; // Avoid division by zero
+        }
         const colorVariance = greenVariance / greenPixels;
         const edgeRegularity = edgePixels / greenPixels;
         const textureComplexity = texturePixels / greenPixels;
@@ -411,4 +417,4 @@ export class ImageProcessingService {
   }
 }
 
-export const imageProcessingService = new ImageProcessingService(); 
+export const imageProcessingService = new ImageProcessingService();

@@ -112,8 +112,8 @@ const Dashboard: React.FC = () => {
         });
       }, 200);
 
-      // TODO: Implement actual calibration logic
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Use real calibration logic
+      await imageProcessingService.setCalibration(parseFloat(referenceArea), selectedImage);
       
       setIsCalibrated(true);
       toast.success('Calibration completed successfully!');
