@@ -162,6 +162,14 @@ const Dashboard: React.FC = () => {
           const res = await fetch(selectedImage);
           blob = await res.blob();
         }
+        // Check blob validity
+        if (!blob || !(blob instanceof Blob) || blob.size === 0) {
+          toast.error('Image blob is invalid or empty.');
+          console.error('Invalid blob:', blob);
+          setIsAnalyzing(false);
+          return;
+        }
+        console.log('Blob details:', blob.type, blob.size);
         const formData = new FormData();
         formData.append('file', blob, 'leaf.jpg');
         // Debug: log FormData keys and values
@@ -173,7 +181,10 @@ const Dashboard: React.FC = () => {
           method: 'POST',
           body: formData
         });
-        if (predictRes.status === 400) {
+        if (predictRes.status === 400 || predictRes.status === 422) {
+          // Log backend error text for diagnostics
+          const errorText = await predictRes.text();
+          console.error('Backend error response:', errorText);
           // Try with 'image' field name if 'file' fails
           const altFormData = new FormData();
           altFormData.append('image', blob, 'leaf.jpg');
