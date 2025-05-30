@@ -369,6 +369,39 @@ async def root():
         }
     }
 
+def check_image_quality(pil_image):
+    """Check image quality and return True if quality is sufficient."""
+    try:
+        # Convert PIL image to OpenCV format
+        image = np.array(pil_image.convert('RGB'))
+        gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+        # Focus
+        laplacian_var = cv2.Laplacian(gray, cv2.CV_64F).var()
+        focus_score = min(1.0, laplacian_var / 1000.0)
+        # Lighting
+        brightness = np.mean(gray)
+        lighting_score = 1.0 - abs(brightness - 128) / 128
+        # Contrast
+        contrast = np.std(gray)
+        contrast_score = min(1.0, contrast / 100.0)
+        # Overall
+        quality_score = (focus_score + lighting_score + contrast_score) / 3
+        return quality_score > 0.5  # You can adjust this threshold
+    except Exception as e:
+        logger.error(f"Error in quality check: {str(e)}")
+        return False
+
+def preprocess_image(pil_image):
+    """Preprocess PIL image for model prediction."""
+    try:
+        img = pil_image.convert('RGB').resize(IMG_SIZE)
+        img_array = np.array(img) / 255.0
+        img_array = np.expand_dims(img_array, axis=0)
+        return img_array
+    except Exception as e:
+        logger.error(f"Error in preprocessing: {str(e)}")
+        return None
+
 if __name__ == "__main__":
     # Get port from environment variable or default to 8000
     port = int(os.getenv("PORT", 8000))
