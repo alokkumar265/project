@@ -172,48 +172,54 @@ const Dashboard: React.FC = () => {
         // Always convert to File for backend compatibility
         const file = new File([blob], 'leaf.jpg', { type: blob.type || 'image/jpeg' });
         console.log('File details:', file.type, file.size);
-        // Try both 'file' and 'image' field names for maximum compatibility
+        // Only use 'file' field name to match backend expectation
+        const formData = new FormData();
+        formData.append('file', file, 'leaf.jpg');
+        // Debug: log FormData keys and values
+        for (let pair of formData.entries()) {
+          console.log('FormData:', pair[0], pair[1]);
+        }
         let diseaseResultResp = null;
         let backendError = null;
-        for (const fieldName of ['file', 'image']) {
-          const formData = new FormData();
-          formData.append(fieldName, file, 'leaf.jpg');
-          // Debug: log FormData keys and values
-          for (let pair of formData.entries()) {
-            console.log('FormData:', pair[0], pair[1]);
-          }
-          let predictRes = await fetch('https://plant-disease-backend-f3gr.onrender.com/predict', {
-            method: 'POST',
-            body: formData
-          });
-          if (predictRes.ok) {
-            const data = await predictRes.json();
-            console.log('Disease prediction response:', data); // Debug log
-            if (data && (data.predicted_class || data.class)) {
-              diseaseResult = {
-                predicted_class: data.predicted_class || data.class,
-                confidence: data.confidence !== undefined ? data.confidence : 0
-              };
-              diseaseResultResp = diseaseResult;
-              break;
-            } else {
-              toast.error('Prediction response missing class/confidence.');
-            }
+        let predictRes = await fetch('https://plant-disease-backend-f3gr.onrender.com/predict', {
+          method: 'POST',
+          body: formData
+        });
+        if (predictRes.ok) {
+          const data = await predictRes.json();
+          console.log('Disease prediction response:', data); // Debug log
+          if (data && (data.predicted_class || data.class)) {
+            diseaseResult = {
+              predicted_class: data.predicted_class || data.class,
+              confidence: data.confidence !== undefined ? data.confidence : 0
+            };
+            diseaseResultResp = diseaseResult;
           } else {
-            // If backend returns error, try to parse error message
-            const errorText = await predictRes.text();
-            let errorData;
-            try {
-              errorData = JSON.parse(errorText);
-            } catch (e) {
-              errorData = { detail: errorText };
-            }
-            backendError = errorData;
-            console.error('Disease prediction error:', errorData);
+            toast.error('Prediction response missing class/confidence.');
           }
+        } else {
+          // If backend returns error, try to parse error message
+          const errorText = await predictRes.text();
+          let errorData;
+          try {
+            errorData = JSON.parse(errorText);
+          } catch (e) {
+            errorData = { detail: errorText };
+          }
+          backendError = errorData;
+          console.error('Disease prediction error:', errorData);
         }
         if (!diseaseResultResp) {
-          toast.error(backendError?.detail || 'Disease prediction failed.');
+          // Show backend error detail in toast if present
+          if (backendError?.detail) {
+            if (Array.isArray(backendError.detail)) {
+              toast.error(backendError.detail.map(e => e.msg || JSON.stringify(e)).join('; '));
+            } else {
+              toast.error(backendError.detail);
+            }
+          } else {
+            toast.error('Disease prediction failed.');
+          }
         } else {
           diseaseResult = diseaseResultResp;
         }
