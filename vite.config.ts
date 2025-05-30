@@ -36,9 +36,10 @@ export default defineConfig(({ mode }) => ({
     sourcemap: true,
     rollupOptions: {
       output: {
-        manualChunks: undefined,
+        manualChunks: {
+          'vendor': ['axios', 'react', 'react-dom'],
+        },
       },
-      external: ['axios'],
     },
   },
   // Fix worker plugins warning

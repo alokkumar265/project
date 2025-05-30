@@ -1,4 +1,5 @@
-import axios, { AxiosError } from 'axios';
+import axios from 'axios';
+import type { AxiosError } from 'axios';
 import { API_CONFIG } from '@/config/api';
 
 export interface DiseasePrediction {
