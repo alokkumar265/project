@@ -60,7 +60,7 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 MODEL_PATH = os.path.join(os.path.dirname(__file__), 'plant_disease_model.h5')  # Try .h5 format first
 MODEL_PATH_KERAS = os.path.join(os.path.dirname(__file__), 'plant_disease_model.keras')  # Fallback to .keras format
 IMG_SIZE = (128, 128)  # Updated to match model's expected input size
-CONFIDENCE_THRESHOLD = 0.7
+CONFIDENCE_THRESHOLD = 0.2  # Lowered threshold for more permissive predictions
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 RATE_LIMIT = 100  # requests per minute
 REQUEST_TIMEOUT = 30  # seconds
@@ -311,14 +311,6 @@ async def predict(request: Request, file: UploadFile = File(...)):
             preds = model.predict(img_array, verbose=0)
             pred_class_idx = np.argmax(preds[0])
             confidence = float(preds[0][pred_class_idx])
-            
-            if confidence < CONFIDENCE_THRESHOLD:
-                logger.warning(f"Low confidence prediction: {confidence:.2f}")
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Low confidence prediction ({confidence:.2%}). Please retake the image."
-                )
-            
             pred_class = class_names[pred_class_idx]
             
             # Get top 3 predictions
@@ -334,7 +326,7 @@ async def predict(request: Request, file: UploadFile = File(...)):
             del img_array
             gc.collect()
             
-            return {
+            response = {
                 "predicted_class": pred_class,
                 "confidence": confidence,
                 "top_3_predictions": top_3_predictions,
@@ -344,6 +336,9 @@ async def predict(request: Request, file: UploadFile = File(...)):
                 },
                 "processing_time": time.time() - request.state.start_time
             }
+            if confidence < CONFIDENCE_THRESHOLD:
+                response["warning"] = f"Low confidence prediction ({confidence:.2%}). Please retake the image for better results."
+            return response
             
         except Exception as e:
             logger.error(f"Error making prediction: {str(e)}")
