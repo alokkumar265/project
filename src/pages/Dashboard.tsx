@@ -171,14 +171,9 @@ const Dashboard: React.FC = () => {
         }
         // Always convert to File for backend compatibility
         const file = new File([blob], 'leaf.jpg', { type: blob.type || 'image/jpeg' });
-        console.log('File details:', file.type, file.size);
         // Only use 'file' field name to match backend expectation
         const formData = new FormData();
         formData.append('file', file, 'leaf.jpg');
-        // Debug: log FormData keys and values
-        for (let pair of formData.entries()) {
-          console.log('FormData:', pair[0], pair[1]);
-        }
         let diseaseResultResp = null;
         let backendError = null;
         let predictRes = await fetch('https://plant-disease-backend-f3gr.onrender.com/predict', {
@@ -187,7 +182,6 @@ const Dashboard: React.FC = () => {
         });
         if (predictRes.ok) {
           const data = await predictRes.json();
-          console.log('Disease prediction response:', data); // Debug log
           if (data && (data.predicted_class || data.class)) {
             diseaseResult = {
               predicted_class: data.predicted_class || data.class,
@@ -198,29 +192,9 @@ const Dashboard: React.FC = () => {
             toast.error('Prediction response missing class/confidence.');
           }
         } else {
-          // If backend returns error, try to parse error message
-          const errorText = await predictRes.text();
-          let errorData;
-          try {
-            errorData = JSON.parse(errorText);
-          } catch (e) {
-            errorData = { detail: errorText };
-          }
-          backendError = errorData;
-          console.error('Disease prediction error:', errorData);
+          toast.error('Disease prediction failed.');
         }
-        if (!diseaseResultResp) {
-          // Show backend error detail in toast if present
-          if (backendError?.detail) {
-            if (Array.isArray(backendError.detail)) {
-              toast.error(backendError.detail.map(e => e.msg || JSON.stringify(e)).join('; '));
-            } else {
-              toast.error(backendError.detail);
-            }
-          } else {
-            toast.error('Disease prediction failed.');
-          }
-        } else {
+        if (diseaseResultResp) {
           diseaseResult = diseaseResultResp;
         }
       } catch (err) {
