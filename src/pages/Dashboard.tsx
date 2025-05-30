@@ -369,20 +369,24 @@ const Dashboard: React.FC = () => {
         </header>
 
         <Tabs defaultValue="analysis" className="space-y-4 sm:space-y-6">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 bg-slate-100 dark:bg-slate-800">
-            <TabsTrigger value="analysis" className="text-sm sm:text-base data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 text-slate-700 dark:text-slate-300">Analysis</TabsTrigger>
-            <TabsTrigger value="model" className="text-sm sm:text-base data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 text-slate-700 dark:text-slate-300">Model Info</TabsTrigger>
-            <TabsTrigger value="batch" className="text-sm sm:text-base data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 text-slate-700 dark:text-slate-300">Batch</TabsTrigger>
-            <TabsTrigger value="about" className="text-sm sm:text-base data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 text-slate-700 dark:text-slate-300">About</TabsTrigger>
+          {/* --- Responsive Tabs List --- */}
+          <TabsList
+            className="grid w-full grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 gap-2 sm:gap-4 bg-slate-100 dark:bg-slate-800 overflow-x-auto scrollbar-hide"
+          >
+            <TabsTrigger value="analysis" className="text-xs xs:text-sm sm:text-base data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 text-slate-700 dark:text-slate-300 py-2 px-1 sm:py-3 sm:px-2">Analysis</TabsTrigger>
+            <TabsTrigger value="model" className="text-xs xs:text-sm sm:text-base data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 text-slate-700 dark:text-slate-300 py-2 px-1 sm:py-3 sm:px-2">Model Info</TabsTrigger>
+            <TabsTrigger value="batch" className="text-xs xs:text-sm sm:text-base data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 text-slate-700 dark:text-slate-300 py-2 px-1 sm:py-3 sm:px-2">Batch</TabsTrigger>
+            <TabsTrigger value="about" className="text-xs xs:text-sm sm:text-base data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 text-slate-700 dark:text-slate-300 py-2 px-1 sm:py-3 sm:px-2">About</TabsTrigger>
           </TabsList>
 
+          {/* --- Responsive Grid for Main Content --- */}
           <TabsContent value="analysis">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8">
               {/* Left Column - Image Capture and Calibration */}
               <div className="space-y-4 sm:space-y-6">
                 <Card className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-sm">
                   <CardHeader className="p-4 sm:p-6">
-                    <CardTitle className="text-lg sm:text-xl text-slate-900 dark:text-slate-100">Image Capture</CardTitle>
+                    <CardTitle className="text-base xs:text-lg sm:text-xl text-slate-900 dark:text-slate-100">Image Capture</CardTitle>
                   </CardHeader>
                   <CardContent className="p-4 sm:p-6 space-y-4">
                     <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
@@ -419,7 +423,7 @@ const Dashboard: React.FC = () => {
 
                 <Card className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-sm">
                   <CardHeader className="p-4 sm:p-6">
-                    <CardTitle className="text-lg sm:text-xl text-slate-900 dark:text-slate-100">Calibration</CardTitle>
+                    <CardTitle className="text-base xs:text-lg sm:text-xl text-slate-900 dark:text-slate-100">Calibration</CardTitle>
                   </CardHeader>
                   <CardContent className="p-4 sm:p-6 space-y-4">
                     <div className="space-y-2">
@@ -466,7 +470,7 @@ const Dashboard: React.FC = () => {
               <div className="space-y-4 sm:space-y-6">
                 <Card className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-sm">
                   <CardHeader className="p-4 sm:p-6">
-                    <CardTitle className="text-lg sm:text-xl text-slate-900 dark:text-slate-100">Analysis</CardTitle>
+                    <CardTitle className="text-base xs:text-lg sm:text-xl text-slate-900 dark:text-slate-100">Analysis</CardTitle>
                   </CardHeader>
                   <CardContent className="p-4 sm:p-6 space-y-4">
                     <Button
