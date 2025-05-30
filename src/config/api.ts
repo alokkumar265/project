@@ -1,8 +1,8 @@
 export const API_CONFIG = {
-  BASE_URL: import.meta.env.VITE_API_URL || 'https://plant-disease-backend-f3gr.onrender.com',
+  BASE_URL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
   ENDPOINTS: {
-    PREDICT: '/api/predict',
-    HEALTH: '/api/health'
+    PREDICT: '/predict',
+    HEALTH: '/health'
   },
   TIMEOUT: 60000, // 60 seconds for image uploads
   IMAGE_SIZE: {

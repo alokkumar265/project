@@ -49,7 +49,7 @@ app = FastAPI(
 # Add middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # Update with your frontend URL
+    allow_origins=["*"],  # Allow all origins during development
     allow_credentials=True,
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
@@ -65,6 +65,35 @@ MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 RATE_LIMIT = 100  # requests per minute
 REQUEST_TIMEOUT = 30  # seconds
 ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/jpg']
+
+# Disease class mapping
+DISEASE_CLASSES = {
+    "0": "Apple___Apple_scab",
+    "1": "Apple___Black_rot",
+    "2": "Apple___Cedar_apple_rust",
+    "3": "Apple___healthy",
+    "4": "Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot",
+    "5": "Corn_(maize)___Common_rust_",
+    "6": "Corn_(maize)___Northern_Leaf_Blight",
+    "7": "Corn_(maize)___healthy",
+    "8": "Grape___Black_rot",
+    "9": "Grape___Esca_(Black_Measles)",
+    "10": "Grape___Leaf_blight_(Isariopsis_Leaf_Spot)",
+    "11": "Grape___healthy",
+    "12": "Potato___Early_blight",
+    "13": "Potato___Late_blight",
+    "14": "Potato___healthy",
+    "15": "Tomato___Bacterial_spot",
+    "16": "Tomato___Early_blight",
+    "17": "Tomato___Late_blight",
+    "18": "Tomato___Leaf_Mold",
+    "19": "Tomato___Septoria_leaf_spot",
+    "20": "Tomato___Spider_mites Two-spotted_spider_mite",
+    "21": "Tomato___Target_Spot",
+    "22": "Tomato___Tomato_Yellow_Leaf_Curl_Virus",
+    "23": "Tomato___Tomato_mosaic_virus",
+    "24": "Tomato___healthy"
+}
 
 # Rate limiting
 request_times: Dict[str, list] = {}
@@ -160,7 +189,7 @@ def get_top_predictions(predictions: np.ndarray, top_k: int = 3) -> List[Tuple[s
     
     # Get corresponding class names and confidence scores
     top_predictions = [
-        (str(idx), float(predictions[0][idx]))
+        (DISEASE_CLASSES[str(idx)], float(predictions[0][idx]))
         for idx in top_indices
     ]
     
@@ -242,7 +271,7 @@ async def predict(request: Request, file: UploadFile = File(...)):
                 "predicted_class": predicted_class,
                 "confidence": confidence,
                 "top_3_predictions": dict(top_predictions),
-                "all_predictions": {str(i): float(p) for i, p in enumerate(predictions[0])},
+                "all_predictions": {DISEASE_CLASSES[str(i)]: float(p) for i, p in enumerate(predictions[0])},
                 "processing_time": processing_time,
                 "warning": "Low confidence prediction. Please try with a clearer image."
             }
@@ -251,7 +280,7 @@ async def predict(request: Request, file: UploadFile = File(...)):
             "predicted_class": predicted_class,
             "confidence": confidence,
             "top_3_predictions": dict(top_predictions),
-            "all_predictions": {str(i): float(p) for i, p in enumerate(predictions[0])},
+            "all_predictions": {DISEASE_CLASSES[str(i)]: float(p) for i, p in enumerate(predictions[0])},
             "processing_time": processing_time
         }
         

@@ -600,31 +600,31 @@ const Dashboard: React.FC = () => {
           </TabsList>
 
           <TabsContent value="analysis">
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-3 sm:gap-4 md:gap-6 lg:gap-8">
               {/* Left Column - Image Capture and Calibration */}
-              <div className="space-y-4 sm:space-y-6 lg:col-span-2">
+              <div className="space-y-3 sm:space-y-4 md:space-y-6 lg:col-span-2">
                 <Card className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-sm">
-                  <CardHeader className="p-4 sm:p-6">
-                    <CardTitle className="text-base xs:text-lg sm:text-xl text-slate-900 dark:text-slate-100">Image Capture</CardTitle>
+                  <CardHeader className="p-3 sm:p-4 md:p-6">
+                    <CardTitle className="text-base sm:text-lg md:text-xl text-slate-900 dark:text-slate-100">Image Capture</CardTitle>
                   </CardHeader>
-                  <CardContent className="p-4 sm:p-6 space-y-4">
-                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+                  <CardContent className="p-3 sm:p-4 md:p-6 space-y-3 sm:space-y-4">
+                    <div className="flex flex-col xs:flex-row gap-2 sm:gap-4">
                       <Button
                         onClick={handleCaptureImage}
-                        className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+                        className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-xs sm:text-sm md:text-base"
                         disabled={isAnalyzing}
                       >
-                        <Camera className="mr-2 h-4 w-4" />
-                        <span className="text-sm sm:text-base">Capture Image</span>
+                        <Camera className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                        <span>Capture Image</span>
                       </Button>
                       <Button
                         onClick={handleSelectImage}
                         variant="outline"
-                        className="flex-1 border-slate-300 dark:border-slate-600"
+                        className="flex-1 border-slate-300 dark:border-slate-600 text-xs sm:text-sm md:text-base"
                         disabled={isAnalyzing}
                       >
-                        <Image className="mr-2 h-4 w-4" />
-                        <span className="text-sm sm:text-base">Select Image</span>
+                        <Image className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                        <span>Select Image</span>
                       </Button>
                     </div>
                     {selectedImage && (
@@ -640,12 +640,12 @@ const Dashboard: React.FC = () => {
                 </Card>
 
                 <Card className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-sm">
-                  <CardHeader className="p-4 sm:p-6">
-                    <CardTitle className="text-base xs:text-lg sm:text-xl text-slate-900 dark:text-slate-100">Calibration</CardTitle>
+                  <CardHeader className="p-3 sm:p-4 md:p-6">
+                    <CardTitle className="text-base sm:text-lg md:text-xl text-slate-900 dark:text-slate-100">Calibration</CardTitle>
                   </CardHeader>
-                  <CardContent className="p-4 sm:p-6 space-y-4">
+                  <CardContent className="p-3 sm:p-4 md:p-6 space-y-3 sm:space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="referenceArea" className="text-sm sm:text-base text-slate-700 dark:text-slate-300">Reference Object Area (cm²)</Label>
+                      <Label htmlFor="referenceArea" className="text-xs sm:text-sm md:text-base text-slate-700 dark:text-slate-300">Reference Object Area (cm²)</Label>
                       <Input
                         id="referenceArea"
                         type="number"
@@ -655,17 +655,17 @@ const Dashboard: React.FC = () => {
                         disabled={isAnalyzing}
                         min="0.1"
                         step="0.1"
-                        className="text-sm sm:text-base border-slate-300 dark:border-slate-600"
+                        className="text-xs sm:text-sm md:text-base border-slate-300 dark:border-slate-600"
                       />
                     </div>
                     <Button
                       onClick={handleCalibrate}
                       disabled={isAnalyzing || !selectedImage || !referenceArea}
-                      className="w-full text-sm sm:text-base bg-emerald-600 hover:bg-emerald-700"
+                      className="w-full text-xs sm:text-sm md:text-base bg-emerald-600 hover:bg-emerald-700"
                     >
                       {isAnalyzing ? (
                         <>
-                          <Loader className="mr-2 h-4 w-4 animate-spin" />
+                          <Loader className="mr-2 h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
                           Calibrating...
                         </>
                       ) : (
@@ -673,7 +673,7 @@ const Dashboard: React.FC = () => {
                       )}
                     </Button>
                     {isCalibrated && (
-                      <Alert className="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 text-sm sm:text-base">
+                      <Alert className="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 text-xs sm:text-sm md:text-base">
                           Calibration completed successfully
                       </Alert>
                     )}
@@ -682,20 +682,20 @@ const Dashboard: React.FC = () => {
               </div>
 
               {/* Right Column - Analysis Results */}
-              <div className="space-y-4 sm:space-y-6 lg:col-span-3">
+              <div className="space-y-3 sm:space-y-4 md:space-y-6 lg:col-span-3">
                 <Card className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-sm">
-                  <CardHeader className="p-4 sm:p-6">
-                    <CardTitle className="text-base xs:text-lg sm:text-xl text-slate-900 dark:text-slate-100">Analysis</CardTitle>
+                  <CardHeader className="p-3 sm:p-4 md:p-6">
+                    <CardTitle className="text-base sm:text-lg md:text-xl text-slate-900 dark:text-slate-100">Analysis</CardTitle>
                   </CardHeader>
-                  <CardContent className="p-4 sm:p-6 space-y-4">
+                  <CardContent className="p-3 sm:p-4 md:p-6 space-y-3 sm:space-y-4">
                     <Button
                       onClick={handleAnalyze}
                       disabled={isAnalyzing || !isCalibrated}
-                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-sm sm:text-base"
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-xs sm:text-sm md:text-base"
                     >
                       {isAnalyzing ? (
                         <>
-                          <Loader className="mr-2 h-4 w-4 animate-spin" />
+                          <Loader className="mr-2 h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
                           Analyzing...
                         </>
                       ) : (
@@ -711,36 +711,36 @@ const Dashboard: React.FC = () => {
                       </div>
                     )}
                     {analysisResult && (
-                      <div className="space-y-4">
+                      <div className="space-y-3 sm:space-y-4">
                         <div className="flex justify-end">
-                          <Button onClick={handlePrint} className="bg-blue-600 hover:bg-blue-700">
-                            <Printer className="w-4 h-4 mr-2" />
+                          <Button onClick={handlePrint} className="bg-blue-600 hover:bg-blue-700 text-xs sm:text-sm md:text-base">
+                            <Printer className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
                             Print Report
                           </Button>
                         </div>
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                           {/* First Row - Key Metrics */}
                           <Card className="bg-white dark:bg-slate-800">
                             <CardHeader className="pb-2">
-                              <CardTitle className="text-lg">Leaf Measurements</CardTitle>
+                              <CardTitle className="text-sm sm:text-base md:text-lg">Leaf Measurements</CardTitle>
                             </CardHeader>
                             <CardContent>
-                              <div className="grid grid-cols-2 gap-4">
+                              <div className="grid grid-cols-2 gap-3 sm:gap-4">
                                 <div>
-                                  <p className="text-sm font-medium">Area</p>
-                                  <p className="text-xl font-bold">{analysisResult.leafArea.toFixed(2)} cm²</p>
+                                  <p className="text-xs sm:text-sm font-medium">Area</p>
+                                  <p className="text-base sm:text-lg md:text-xl font-bold">{analysisResult.leafArea.toFixed(2)} cm²</p>
                                 </div>
                                 <div>
-                                  <p className="text-sm font-medium">Perimeter</p>
-                                  <p className="text-xl font-bold">{analysisResult.measurements.perimeter.toFixed(1)} cm</p>
+                                  <p className="text-xs sm:text-sm font-medium">Perimeter</p>
+                                  <p className="text-base sm:text-lg md:text-xl font-bold">{analysisResult.measurements.perimeter.toFixed(1)} cm</p>
                                 </div>
                                 <div>
-                                  <p className="text-sm font-medium">Width × Height</p>
-                                  <p className="text-xl font-bold">{analysisResult.measurements.width.toFixed(1)} × {analysisResult.measurements.height.toFixed(1)} cm</p>
+                                  <p className="text-xs sm:text-sm font-medium">Width × Height</p>
+                                  <p className="text-base sm:text-lg md:text-xl font-bold">{analysisResult.measurements.width.toFixed(1)} × {analysisResult.measurements.height.toFixed(1)} cm</p>
                                 </div>
                                 <div>
-                                  <p className="text-sm font-medium">Aspect Ratio</p>
-                                  <p className="text-xl font-bold">{analysisResult.measurements.aspectRatio.toFixed(2)}</p>
+                                  <p className="text-xs sm:text-sm font-medium">Aspect Ratio</p>
+                                  <p className="text-base sm:text-lg md:text-xl font-bold">{analysisResult.measurements.aspectRatio.toFixed(2)}</p>
                                 </div>
                               </div>
                             </CardContent>
@@ -748,31 +748,31 @@ const Dashboard: React.FC = () => {
 
                           <Card className="bg-white dark:bg-slate-800">
                             <CardHeader className="pb-2">
-                              <CardTitle className="text-lg">Health Status</CardTitle>
+                              <CardTitle className="text-sm sm:text-base md:text-lg">Health Status</CardTitle>
                             </CardHeader>
                             <CardContent>
-                              <div className="grid grid-cols-2 gap-4">
+                              <div className="grid grid-cols-2 gap-3 sm:gap-4">
                                 <div>
-                                  <p className="text-sm font-medium">Overall Health</p>
-                                  <p className={`text-xl font-bold ${getHealthStatus(analysisResult.healthIndicators.overallHealthScore).color}`}>
+                                  <p className="text-xs sm:text-sm font-medium">Overall Health</p>
+                                  <p className={`text-base sm:text-lg md:text-xl font-bold ${getHealthStatus(analysisResult.healthIndicators.overallHealthScore).color}`}>
                                     {analysisResult.healthIndicators.overallHealthScore.toFixed(1)}%
                                   </p>
                                 </div>
                                 <div>
-                                  <p className="text-sm font-medium">Stress Level</p>
-                                  <p className={`text-xl font-bold ${getStressLevel(analysisResult.healthIndicators.stressLevel).color}`}>
+                                  <p className="text-xs sm:text-sm font-medium">Stress Level</p>
+                                  <p className={`text-base sm:text-lg md:text-xl font-bold ${getStressLevel(analysisResult.healthIndicators.stressLevel).color}`}>
                                     {analysisResult.healthIndicators.stressLevel.toFixed(1)}%
                                   </p>
                                 </div>
                                 <div>
-                                  <p className="text-sm font-medium">Color Uniformity</p>
-                                  <p className={`text-xl font-bold ${analysisResult.healthIndicators.colorUniformity * 100 > 90 ? 'text-green-600' : 'text-yellow-600'}`}>
+                                  <p className="text-xs sm:text-sm font-medium">Color Uniformity</p>
+                                  <p className={`text-base sm:text-lg md:text-xl font-bold ${analysisResult.healthIndicators.colorUniformity * 100 > 90 ? 'text-green-600' : 'text-yellow-600'}`}>
                                     {(analysisResult.healthIndicators.colorUniformity * 100).toFixed(1)}%
                                   </p>
                                 </div>
                                 <div>
-                                  <p className="text-sm font-medium">Edge Regularity</p>
-                                  <p className={`text-xl font-bold ${analysisResult.healthIndicators.edgeRegularity * 100 < 10 ? 'text-red-600' : 'text-yellow-600'}`}>
+                                  <p className="text-xs sm:text-sm font-medium">Edge Regularity</p>
+                                  <p className={`text-base sm:text-lg md:text-xl font-bold ${analysisResult.healthIndicators.edgeRegularity * 100 < 10 ? 'text-red-600' : 'text-yellow-600'}`}>
                                     {(analysisResult.healthIndicators.edgeRegularity * 100).toFixed(1)}%
                                   </p>
                                 </div>
@@ -782,25 +782,25 @@ const Dashboard: React.FC = () => {
 
                           <Card className="bg-white dark:bg-slate-800">
                             <CardHeader className="pb-2">
-                              <CardTitle className="text-lg">Nutrient Status</CardTitle>
+                              <CardTitle className="text-sm sm:text-base md:text-lg">Nutrient Status</CardTitle>
                             </CardHeader>
                             <CardContent>
-                              <div className="grid grid-cols-2 gap-4">
+                              <div className="grid grid-cols-2 gap-3 sm:gap-4">
                                 <div>
-                                  <p className="text-sm font-medium">Nitrogen</p>
-                                  <p className="text-xl font-bold">{analysisResult.nutrientIndicators?.nitrogenContent.toFixed(1) || 'N/A'}%</p>
+                                  <p className="text-xs sm:text-sm font-medium">Nitrogen</p>
+                                  <p className="text-base sm:text-lg md:text-xl font-bold">{analysisResult.nutrientIndicators?.nitrogenContent.toFixed(1) || 'N/A'}%</p>
                                 </div>
                                 <div>
-                                  <p className="text-sm font-medium">Chlorophyll</p>
-                                  <p className="text-xl font-bold">{analysisResult.nutrientIndicators?.chlorophyllContent.toFixed(1) || 'N/A'}%</p>
+                                  <p className="text-xs sm:text-sm font-medium">Chlorophyll</p>
+                                  <p className="text-base sm:text-lg md:text-xl font-bold">{analysisResult.nutrientIndicators?.chlorophyllContent.toFixed(1) || 'N/A'}%</p>
                                 </div>
                                 <div>
-                                  <p className="text-sm font-medium">Water Content</p>
-                                  <p className="text-xl font-bold">{analysisResult.nutrientIndicators?.waterContent.toFixed(1) || 'N/A'}%</p>
+                                  <p className="text-xs sm:text-sm font-medium">Water Content</p>
+                                  <p className="text-base sm:text-lg md:text-xl font-bold">{analysisResult.nutrientIndicators?.waterContent.toFixed(1) || 'N/A'}%</p>
                                 </div>
                                 <div>
-                                  <p className="text-sm font-medium">Growth Stage</p>
-                                  <p className="text-xl font-bold">{analysisResult.growthStage?.stage || 'N/A'}</p>
+                                  <p className="text-xs sm:text-sm font-medium">Growth Stage</p>
+                                  <p className="text-base sm:text-lg md:text-xl font-bold">{analysisResult.growthStage?.stage || 'N/A'}</p>
                                 </div>
                               </div>
                             </CardContent>
@@ -808,24 +808,24 @@ const Dashboard: React.FC = () => {
 
                           <Card className="bg-white dark:bg-slate-800">
                             <CardHeader className="pb-2">
-                              <CardTitle className="text-lg">Color Metrics</CardTitle>
+                              <CardTitle className="text-sm sm:text-base md:text-lg">Color Metrics</CardTitle>
                             </CardHeader>
                             <CardContent>
-                              <div className="grid grid-cols-2 gap-4">
+                              <div className="grid grid-cols-2 gap-3 sm:gap-4">
                                 <div>
-                                  <p className="text-sm font-medium">RGB Values</p>
+                                  <p className="text-xs sm:text-sm font-medium">RGB Values</p>
                                   <div className="space-y-1">
-                                    <p className="text-sm">R: {analysisResult.colorMetrics.averageRed.toFixed(1)}</p>
-                                    <p className="text-sm">G: {analysisResult.colorMetrics.averageGreen.toFixed(1)}</p>
-                                    <p className="text-sm">B: {analysisResult.colorMetrics.averageBlue.toFixed(1)}</p>
+                                    <p className="text-xs sm:text-sm">R: {analysisResult.colorMetrics.averageRed.toFixed(1)}</p>
+                                    <p className="text-xs sm:text-sm">G: {analysisResult.colorMetrics.averageGreen.toFixed(1)}</p>
+                                    <p className="text-xs sm:text-sm">B: {analysisResult.colorMetrics.averageBlue.toFixed(1)}</p>
                                   </div>
                                 </div>
                                 <div>
-                                  <p className="text-sm font-medium">Ratios</p>
+                                  <p className="text-xs sm:text-sm font-medium">Ratios</p>
                                   <div className="space-y-1">
-                                    <p className="text-sm">R/G: {analysisResult.colorMetrics.redGreenRatio?.toFixed(2) || 'N/A'}</p>
-                                    <p className="text-sm">B/G: {analysisResult.colorMetrics.blueGreenRatio?.toFixed(2) || 'N/A'}</p>
-                                    <p className="text-sm">Chlorophyll: {analysisResult.colorMetrics.chlorophyllIndex?.toFixed(2) || 'N/A'}</p>
+                                    <p className="text-xs sm:text-sm">R/G: {analysisResult.colorMetrics.redGreenRatio?.toFixed(2) || 'N/A'}</p>
+                                    <p className="text-xs sm:text-sm">B/G: {analysisResult.colorMetrics.blueGreenRatio?.toFixed(2) || 'N/A'}</p>
+                                    <p className="text-xs sm:text-sm">Chlorophyll: {analysisResult.colorMetrics.chlorophyllIndex?.toFixed(2) || 'N/A'}</p>
                                   </div>
                                 </div>
                               </div>
@@ -833,22 +833,22 @@ const Dashboard: React.FC = () => {
                           </Card>
 
                           {/* Disease Prediction - Full Width */}
-                          <Card className="bg-white dark:bg-slate-800 lg:col-span-2">
+                          <Card className="bg-white dark:bg-slate-800 sm:col-span-2">
                             <CardHeader className="pb-2">
-                              <CardTitle className="text-lg">Disease Prediction</CardTitle>
+                              <CardTitle className="text-sm sm:text-base md:text-lg">Disease Prediction</CardTitle>
                             </CardHeader>
                             <CardContent>
-                              <div className="grid grid-cols-2 gap-6">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-6">
                                 <div>
-                                  <p className="text-sm font-medium">Predicted Disease</p>
-                                  <p className="text-xl font-bold text-red-600">{formatDiseaseName(analysisResult.disease.predicted_class)}</p>
-                                  <p className="text-sm text-slate-500">Confidence: {(analysisResult.disease.confidence * 100).toFixed(1)}%</p>
+                                  <p className="text-xs sm:text-sm font-medium">Predicted Disease</p>
+                                  <p className="text-base sm:text-lg md:text-xl font-bold text-red-600">{formatDiseaseName(analysisResult.disease.predicted_class)}</p>
+                                  <p className="text-xs sm:text-sm text-slate-500">Confidence: {(analysisResult.disease.confidence * 100).toFixed(1)}%</p>
                                 </div>
                                 <div>
-                                  <p className="text-sm font-medium">Top Predictions</p>
+                                  <p className="text-xs sm:text-sm font-medium">Top Predictions</p>
                                   <div className="space-y-1">
                                     {analysisResult.disease.top_3_predictions && Object.entries(analysisResult.disease.top_3_predictions).map(([disease, confidence]) => (
-                                      <div key={disease} className="flex justify-between text-sm">
+                                      <div key={disease} className="flex justify-between text-xs sm:text-sm">
                                         <span>{formatDiseaseName(disease)}</span>
                                         <span className="font-medium">{(confidence * 100).toFixed(1)}%</span>
                                       </div>
@@ -860,26 +860,26 @@ const Dashboard: React.FC = () => {
                           </Card>
 
                           {/* Calibration Details - Full Width */}
-                          <Card className="bg-white dark:bg-slate-800 lg:col-span-2">
+                          <Card className="bg-white dark:bg-slate-800 sm:col-span-2">
                             <CardHeader className="pb-2">
-                              <CardTitle className="text-lg">Calibration Details</CardTitle>
+                              <CardTitle className="text-sm sm:text-base md:text-lg">Calibration Details</CardTitle>
                             </CardHeader>
                             <CardContent>
-                              <div className="grid grid-cols-3 gap-6">
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-6">
                                 <div>
-                                  <p className="text-sm font-medium">Reference Area</p>
-                                  <p className="text-xl font-bold">{analysisResult.calibration.referenceArea} cm²</p>
-                                  <p className="text-xs text-slate-500">Calibration reference object area</p>
+                                  <p className="text-xs sm:text-sm font-medium">Reference Area</p>
+                                  <p className="text-base sm:text-lg md:text-xl font-bold">{analysisResult.calibration.referenceArea} cm²</p>
+                                  <p className="text-[10px] sm:text-xs text-slate-500">Calibration reference object area</p>
                                 </div>
                                 <div>
-                                  <p className="text-sm font-medium">Pixel Ratio</p>
-                                  <p className="text-xl font-bold">{analysisResult.calibration.pixelRatio.toFixed(6)} cm²/pixel</p>
-                                  <p className="text-xs text-slate-500">Conversion factor for measurements</p>
+                                  <p className="text-xs sm:text-sm font-medium">Pixel Ratio</p>
+                                  <p className="text-base sm:text-lg md:text-xl font-bold">{analysisResult.calibration.pixelRatio.toFixed(6)} cm²/pixel</p>
+                                  <p className="text-[10px] sm:text-xs text-slate-500">Conversion factor for measurements</p>
                                 </div>
                                 <div>
-                                  <p className="text-sm font-medium">Formula Used</p>
-                                  <p className="text-xl font-bold text-sm">{analysisResult.calibration.formula}</p>
-                                  <p className="text-xs text-slate-500">Area calculation method</p>
+                                  <p className="text-xs sm:text-sm font-medium">Formula Used</p>
+                                  <p className="text-base sm:text-lg md:text-xl font-bold text-xs sm:text-sm">{analysisResult.calibration.formula}</p>
+                                  <p className="text-[10px] sm:text-xs text-slate-500">Area calculation method</p>
                                 </div>
                               </div>
                             </CardContent>
@@ -1171,21 +1171,22 @@ const Dashboard: React.FC = () => {
                             className="w-20 h-20 sm:w-24 sm:h-24 md:w-32 md:h-32 rounded-full object-cover mb-3 sm:mb-4 border-4 border-slate-200 dark:border-slate-700"
                           />
                           <h4 className="font-semibold text-slate-900 dark:text-slate-100 text-sm sm:text-base md:text-lg">Sharique Azam</h4>
-                          <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mb-2">Backend Developer</p>
+                          <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mb-2">Frontend Developer</p>
                           <div className="text-[10px] sm:text-xs md:text-sm text-slate-600 dark:text-slate-400 text-center space-y-1 sm:space-y-2 mb-3 px-2 sm:px-4">
                             <p>
-                              <span className="font-semibold">B.Tech CSE(DS) Student</span> at Haldia Institute of Technology, specializing in data science and backend development.
+                              <span className="font-semibold">B.Tech CSE(DS) Student</span> at Haldia Institute of Technology, specializing in frontend development and building modern web applications.
                             </p>
                             <p>
-                              Experienced in building robust backend systems and implementing machine learning solutions for real-world applications.
+                              Experienced in creating responsive and interactive user interfaces using React and other modern web technologies.
                             </p>
                           </div>
                           <div className="mt-2 sm:mt-3 flex flex-wrap gap-1 sm:gap-1.5 md:gap-2 justify-center px-2">
-                            <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-[9px] sm:text-[10px] md:text-xs rounded-full">Python</span>
-                            <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-[9px] sm:text-[10px] md:text-xs rounded-full">Machine Learning</span>
-                            <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-[9px] sm:text-[10px] md:text-xs rounded-full">Data Science</span>
-                            <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-[9px] sm:text-[10px] md:text-xs rounded-full">Backend</span>
-                            <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-[9px] sm:text-[10px] md:text-xs rounded-full">API Development</span>
+                            <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-[9px] sm:text-[10px] md:text-xs rounded-full">React</span>
+                            <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-[9px] sm:text-[10px] md:text-xs rounded-full">JavaScript</span>
+                            <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-[9px] sm:text-[10px] md:text-xs rounded-full">Java</span>
+                            <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-[9px] sm:text-[10px] md:text-xs rounded-full">C++</span>
+                            <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-[9px] sm:text-[10px] md:text-xs rounded-full">HTML/CSS</span>
+                            <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-[9px] sm:text-[10px] md:text-xs rounded-full">Tailwind</span>
                           </div>
                           <div className="mt-3 sm:mt-4 flex gap-3 sm:gap-4">
                             <a href="https://github.com/HiIamShariqueAzam" target="_blank" rel="noopener noreferrer" className="text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors" aria-label="GitHub Profile">
