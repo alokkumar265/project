@@ -3,6 +3,9 @@ frontend:
   phases:
     preBuild:
       commands:
+        - nvm install 20
+        - nvm use 20
+        - node -v
         - npm ci
     build:
       commands:
@@ -26,4 +29,4 @@ frontend:
         - key: 'X-Frame-Options'
           value: 'DENY'
         - key: 'X-XSS-Protection'
-          value: '1; mode=block' 
+          value: '1; mode=block'
