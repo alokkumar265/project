@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { cameraService } from '@/services/CameraService';
 
 interface AnalysisResult {
   leafArea: number;
@@ -63,21 +64,13 @@ const Dashboard: React.FC = () => {
 
   const handleCaptureImage = async () => {
     try {
-      const imageData = await navigator.mediaDevices.getUserMedia({ video: true });
-      const video = document.createElement('video');
-      video.srcObject = imageData;
-      await video.play();
-      
-      const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext('2d');
-      ctx?.drawImage(video, 0, 0);
-      
-      const imageUrl = canvas.toDataURL('image/jpeg');
-      setSelectedImage(imageUrl);
-      video.srcObject?.getTracks().forEach(track => track.stop());
-      toast.success('Image captured successfully!');
+      const imageData = await cameraService.captureImage();
+      if (imageData && imageData.webPath) {
+        setSelectedImage(imageData.webPath);
+        toast.success('Image captured successfully!');
+      } else {
+        toast.error('No image captured.');
+      }
     } catch (error) {
       toast.error('Failed to capture image. Please try again.');
       console.error('Camera error:', error);
@@ -85,21 +78,18 @@ const Dashboard: React.FC = () => {
   };
 
   const handleSelectImage = async () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          setSelectedImage(event.target?.result as string);
-          toast.success('Image selected successfully!');
-        };
-        reader.readAsDataURL(file);
+    try {
+      const imageData = await cameraService.selectImage();
+      if (imageData && imageData.webPath) {
+        setSelectedImage(imageData.webPath);
+        toast.success('Image selected successfully!');
+      } else {
+        toast.error('No image selected.');
       }
-    };
-    input.click();
+    } catch (error) {
+      toast.error('Failed to select image. Please try again.');
+      console.error('Gallery error:', error);
+    }
   };
 
   const handleCalibrate = async () => {
@@ -371,12 +361,13 @@ const Dashboard: React.FC = () => {
         <Tabs defaultValue="analysis" className="space-y-4 sm:space-y-6">
           {/* --- Responsive Tabs List --- */}
           <TabsList
-            className="grid w-full grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 gap-2 sm:gap-4 bg-slate-100 dark:bg-slate-800 overflow-x-auto scrollbar-hide"
+            className="flex w-full overflow-x-auto scrollbar-hide gap-2 sm:gap-4 bg-slate-100 dark:bg-slate-800 px-1 sm:px-0"
+            style={{ WebkitOverflowScrolling: 'touch' }}
           >
-            <TabsTrigger value="analysis" className="text-xs xs:text-sm sm:text-base data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 text-slate-700 dark:text-slate-300 py-2 px-1 sm:py-3 sm:px-2">Analysis</TabsTrigger>
-            <TabsTrigger value="model" className="text-xs xs:text-sm sm:text-base data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 text-slate-700 dark:text-slate-300 py-2 px-1 sm:py-3 sm:px-2">Model Info</TabsTrigger>
-            <TabsTrigger value="batch" className="text-xs xs:text-sm sm:text-base data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 text-slate-700 dark:text-slate-300 py-2 px-1 sm:py-3 sm:px-2">Batch</TabsTrigger>
-            <TabsTrigger value="about" className="text-xs xs:text-sm sm:text-base data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 text-slate-700 dark:text-slate-300 py-2 px-1 sm:py-3 sm:px-2">About</TabsTrigger>
+            <TabsTrigger value="analysis" className="flex-shrink-0 text-xs xs:text-sm sm:text-base data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 text-slate-700 dark:text-slate-300 py-2 px-3 sm:py-3 sm:px-4 min-w-[90px]">Analysis</TabsTrigger>
+            <TabsTrigger value="model" className="flex-shrink-0 text-xs xs:text-sm sm:text-base data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 text-slate-700 dark:text-slate-300 py-2 px-3 sm:py-3 sm:px-4 min-w-[90px]">Model Info</TabsTrigger>
+            <TabsTrigger value="batch" className="flex-shrink-0 text-xs xs:text-sm sm:text-base data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 text-slate-700 dark:text-slate-300 py-2 px-3 sm:py-3 sm:px-4 min-w-[90px]">Batch</TabsTrigger>
+            <TabsTrigger value="about" className="flex-shrink-0 text-xs xs:text-sm sm:text-base data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 text-slate-700 dark:text-slate-300 py-2 px-3 sm:py-3 sm:px-4 min-w-[90px]">About</TabsTrigger>
           </TabsList>
 
           {/* --- Responsive Grid for Main Content --- */}
@@ -575,13 +566,13 @@ const Dashboard: React.FC = () => {
 
           <TabsContent value="model">
             <Card className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-sm">
-              <CardHeader className="p-4 sm:p-6">
-                <CardTitle className="flex items-center gap-2 text-lg sm:text-xl text-slate-900 dark:text-slate-100">
+              <CardHeader className="p-3 xs:p-4 sm:p-6">
+                <CardTitle className="flex items-center gap-2 text-base xs:text-lg sm:text-xl text-slate-900 dark:text-slate-100">
                   <Info className="h-5 w-5" />
                   Model Information
                 </CardTitle>
               </CardHeader>
-              <CardContent className="p-4 sm:p-6">
+              <CardContent className="p-3 xs:p-4 sm:p-6">
                 <div className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-4">
@@ -750,13 +741,13 @@ const Dashboard: React.FC = () => {
 
           <TabsContent value="batch">
             <Card className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-sm">
-              <CardHeader className="p-4 sm:p-6">
-                <CardTitle className="flex items-center gap-2 text-lg sm:text-xl text-slate-900 dark:text-slate-100">
+              <CardHeader className="p-3 xs:p-4 sm:p-6">
+                <CardTitle className="flex items-center gap-2 text-base xs:text-lg sm:text-xl text-slate-900 dark:text-slate-100">
                   <Database className="h-5 w-5" />
                   Batch Analysis
                 </CardTitle>
               </CardHeader>
-              <CardContent className="p-4 sm:p-6">
+              <CardContent className="p-3 xs:p-4 sm:p-6">
                 <div className="text-center py-6 sm:py-8">
                   <h3 className="text-base sm:text-lg font-medium text-slate-900 dark:text-slate-100 mb-2">Coming Soon!</h3>
                   <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400">
@@ -769,13 +760,13 @@ const Dashboard: React.FC = () => {
 
           <TabsContent value="about">
             <Card className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-sm">
-              <CardHeader className="p-4 sm:p-6">
-                <CardTitle className="flex items-center gap-2 text-lg sm:text-xl text-slate-900 dark:text-slate-100">
+              <CardHeader className="p-3 xs:p-4 sm:p-6">
+                <CardTitle className="flex items-center gap-2 text-base xs:text-lg sm:text-xl text-slate-900 dark:text-slate-100">
                   <Users className="h-5 w-5" />
                   About & Development Team
                 </CardTitle>
               </CardHeader>
-              <CardContent className="p-4 sm:p-6">
+              <CardContent className="p-3 xs:p-4 sm:p-6">
                 <div className="space-y-6">
                   <div>
                     <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-3 text-sm sm:text-base">Project Overview</h3>
