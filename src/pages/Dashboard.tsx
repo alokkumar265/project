@@ -10,6 +10,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cameraService } from '@/services/CameraService';
 import { imageProcessingService } from '@/services/ImageProcessingService';
+import { apiService } from '@/services/ApiService';
 
 interface AnalysisResult {
   leafArea: number;
@@ -133,6 +134,7 @@ const Dashboard: React.FC = () => {
     try {
       setIsAnalyzing(true);
       setAnalysisProgress(0);
+      
       // Simulate analysis progress
       const interval = setInterval(() => {
         setAnalysisProgress(prev => {
@@ -148,57 +150,26 @@ const Dashboard: React.FC = () => {
       // Use real image analysis logic
       const result = await imageProcessingService.measureLeafArea(selectedImage);
 
-      // --- Disease Prediction API Call ---
+      // Disease Prediction
       let diseaseResult = { predicted_class: 'N/A', confidence: 0 };
       try {
         // Convert image to blob
-        let blob;
-        if (selectedImage.startsWith('data:')) {
-          // base64 data URL
-          const res = await fetch(selectedImage);
-          blob = await res.blob();
-        } else {
-          // file path or URL
-          const res = await fetch(selectedImage);
-          blob = await res.blob();
+        const response = await fetch(selectedImage);
+        const blob = await response.blob();
+        const file = new File([blob], 'leaf.jpg', { type: 'image/jpeg' });
+        
+        const prediction = await apiService.predictDisease(file);
+        diseaseResult = {
+          predicted_class: prediction.predicted_class,
+          confidence: prediction.confidence
+        };
+        
+        if (prediction.warning) {
+          toast.warning(prediction.warning);
         }
-        // Check blob validity
-        if (!blob || !(blob instanceof Blob) || blob.size === 0) {
-          toast.error('Image blob is invalid or empty.');
-          console.error('Invalid blob:', blob);
-          setIsAnalyzing(false);
-          return;
-        }
-        // Always convert to File for backend compatibility
-        const file = new File([blob], 'leaf.jpg', { type: blob.type || 'image/jpeg' });
-        // Only use 'file' field name to match backend expectation
-        const formData = new FormData();
-        formData.append('file', file, 'leaf.jpg');
-        let diseaseResultResp = null;
-        let backendError = null;
-        let predictRes = await fetch('https://plant-disease-backend-f3gr.onrender.com/predict', {
-          method: 'POST',
-          body: formData
-        });
-        if (predictRes.ok) {
-          const data = await predictRes.json();
-          if (data && (data.predicted_class || data.class)) {
-            diseaseResult = {
-              predicted_class: data.predicted_class || data.class,
-              confidence: data.confidence !== undefined ? data.confidence : 0
-            };
-            diseaseResultResp = diseaseResult;
-          } else {
-            toast.error('Prediction response missing class/confidence.');
-          }
-        } else {
-          toast.error('Disease prediction failed.');
-        }
-        if (diseaseResultResp) {
-          diseaseResult = diseaseResultResp;
-        }
-      } catch (err) {
-        toast.error('Disease prediction failed. Please try again.');
+      } catch (error) {
+        console.error('Disease prediction error:', error);
+        toast.error(error instanceof Error ? error.message : 'Failed to predict disease');
       }
 
       setAnalysisResult({
@@ -227,9 +198,11 @@ const Dashboard: React.FC = () => {
           formula: 'Leaf Area = (Pixel Count × Reference Area) / Reference Pixel Count'
         }
       });
+      
       toast.success('Analysis completed successfully!');
     } catch (error) {
-      toast.error('Analysis failed. Please try again.');
+      console.error('Analysis error:', error);
+      toast.error(error instanceof Error ? error.message : 'Analysis failed. Please try again.');
     } finally {
       setIsAnalyzing(false);
     }
