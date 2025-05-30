@@ -164,11 +164,24 @@ const Dashboard: React.FC = () => {
         }
         const formData = new FormData();
         formData.append('file', blob, 'leaf.jpg');
-        // Call backend /predict endpoint
-        const predictRes = await fetch('https://plant-disease-backend-f3gr.onrender.com/predict', {
+        // Debug: log FormData keys and values
+        for (let pair of formData.entries()) {
+          console.log('FormData:', pair[0], pair[1]);
+        }
+        // Try both 'file' and 'image' field names
+        let predictRes = await fetch('https://plant-disease-backend-f3gr.onrender.com/predict', {
           method: 'POST',
           body: formData
         });
+        if (predictRes.status === 400) {
+          // Try with 'image' field name if 'file' fails
+          const altFormData = new FormData();
+          altFormData.append('image', blob, 'leaf.jpg');
+          predictRes = await fetch('https://plant-disease-backend-f3gr.onrender.com/predict', {
+            method: 'POST',
+            body: altFormData
+          });
+        }
         if (predictRes.ok) {
           const data = await predictRes.json();
           console.log('Disease prediction response:', data); // Debug log
