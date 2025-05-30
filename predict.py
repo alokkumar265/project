@@ -10,15 +10,38 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class PlantDiseasePredictor:
-    def __init__(self, model_path='models/best_model.h5'):
-        self.img_size = (160, 160)  # Same as training
+    def __init__(self, model_path=None):
+        self.img_size = (128, 128)  # Match model input shape
+        # Try loading model from project root
+        root_dir = os.path.dirname(os.path.abspath(__file__))
+        if model_path is None:
+            h5_path = os.path.join(root_dir, 'plant_disease_model.h5')
+            keras_path = os.path.join(root_dir, 'plant_disease_model.keras')
+            if os.path.exists(h5_path):
+                model_path = h5_path
+            elif os.path.exists(keras_path):
+                model_path = keras_path
+            else:
+                raise FileNotFoundError('No model file found in project root.')
         self.model = load_model(model_path)
-        # Dynamically load class names from plantvillage_data directory, sorted
-        data_dir = os.path.join(os.path.dirname(__file__), 'plantvillage_data')
-        self.class_names = sorted([
-            d for d in os.listdir(data_dir)
-            if os.path.isdir(os.path.join(data_dir, d))
-        ])
+        # Hardcoded class names (order must match model training)
+        self.class_names = [
+            'Pepper__bell___Bacterial_spot',
+            'Pepper__bell___healthy',
+            'Potato___Early_blight',
+            'Potato___Late_blight',
+            'Potato___healthy',
+            'Tomato_Bacterial_spot',
+            'Tomato_Early_blight',
+            'Tomato_Late_blight',
+            'Tomato_Leaf_Mold',
+            'Tomato_Septoria_leaf_spot',
+            'Tomato_Spider_mites_Two_spotted_spider_mite',
+            'Tomato__Target_Spot',
+            'Tomato__Tomato_YellowLeaf__Curl_Virus',
+            'Tomato__Tomato_mosaic_virus',
+            'Tomato_healthy'
+        ]
     
     def preprocess_image(self, image_path):
         """Preprocess a single image for prediction."""
@@ -75,7 +98,7 @@ def main():
     predictor = PlantDiseasePredictor()
     
     # Example: Predict a single image
-    test_image_path = 'path/to/your/test/image.jpg'  # Replace with your image path
+    test_image_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sample_leaf.jpg')
     if os.path.exists(test_image_path):
         result = predictor.predict(test_image_path)
         if result:
