@@ -169,7 +169,7 @@ const Dashboard: React.FC = () => {
         });
       }, 200);
 
-      // Use real image analysis logic for leaf area
+      // Use real image analysis logic
       const result = await imageProcessingService.measureLeafArea(selectedImage);
 
       // Disease Prediction
@@ -242,10 +242,19 @@ const Dashboard: React.FC = () => {
         diseaseResult.warning = errorMessage;
       }
 
-      // Update analysis result
+      // Update analysis result with all original properties
       setAnalysisResult({
-        ...result,
-        disease: diseaseResult
+        leafArea: result.leafArea,
+        disease: diseaseResult,
+        measurements: result.measurements,
+        colorMetrics: result.colorMetrics,
+        healthIndicators: result.healthIndicators,
+        calibration: result.calibration,
+        greenPixelCount: result.greenPixelCount,
+        redPixelCount: result.redPixelCount,
+        calibrationArea: result.calibrationArea,
+        pixelToCmRatio: result.pixelToCmRatio,
+        leafHealthIndicators: result.leafHealthIndicators
       });
 
     } catch (error) {
