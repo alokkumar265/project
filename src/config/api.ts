@@ -4,9 +4,12 @@ export const API_CONFIG = {
     PREDICT: '/predict',
     HEALTH: '/health'
   },
-  TIMEOUT: 30000, // 30 seconds
+  TIMEOUT: 60000, // 60 seconds for image upload
   IMAGE_SIZE: {
-    WIDTH: 128,
-    HEIGHT: 128
-  }
+    WIDTH: 224, // Updated to match model input size
+    HEIGHT: 224
+  },
+  RETRY_ATTEMPTS: 3,
+  RETRY_DELAY: 1000, // 1 second
+  MIN_CONFIDENCE: 0.2 // 20% minimum confidence threshold
 }; 

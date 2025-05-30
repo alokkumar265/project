@@ -38,12 +38,13 @@ export default defineConfig(({ mode }) => ({
       output: {
         manualChunks: undefined,
       },
+      external: ['axios'],
     },
   },
-  // Disable service workers completely
+  // Fix worker plugins warning
   worker: {
     format: 'es',
-    plugins: [],
+    plugins: () => [],
   },
   // Ensure no service worker registration
   define: {

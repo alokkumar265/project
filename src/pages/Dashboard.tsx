@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cameraService } from '@/services/CameraService';
 import { imageProcessingService } from '@/services/ImageProcessingService';
 import { apiService } from '@/services/ApiService';
+import { API_CONFIG } from '@/config/apiConfig';
 
 interface AnalysisResult {
   leafArea: number;
@@ -158,18 +159,33 @@ const Dashboard: React.FC = () => {
         const blob = await response.blob();
         const file = new File([blob], 'leaf.jpg', { type: 'image/jpeg' });
         
+        // Check API health first
+        await apiService.checkHealth();
+        
         const prediction = await apiService.predictDisease(file);
         diseaseResult = {
-          predicted_class: prediction.predicted_class,
-          confidence: prediction.confidence
+          predicted_class: prediction.predicted_class || 'N/A',
+          confidence: prediction.confidence || 0
         };
         
         if (prediction.warning) {
           toast.warning(prediction.warning);
         }
+
+        // Show success message if prediction is good
+        if (diseaseResult.confidence >= API_CONFIG.MIN_CONFIDENCE) {
+          toast.success(`Disease detected: ${diseaseResult.predicted_class} (${(diseaseResult.confidence * 100).toFixed(2)}% confidence)`);
+        }
       } catch (error) {
         console.error('Disease prediction error:', error);
-        toast.error(error instanceof Error ? error.message : 'Failed to predict disease');
+        const errorMessage = error instanceof Error ? error.message : 'Failed to predict disease';
+        toast.error(errorMessage);
+        
+        // Set default values for failed prediction
+        diseaseResult = {
+          predicted_class: 'N/A',
+          confidence: 0
+        };
       }
 
       setAnalysisResult({
@@ -198,13 +214,12 @@ const Dashboard: React.FC = () => {
           formula: 'Leaf Area = (Pixel Count × Reference Area) / Reference Pixel Count'
         }
       });
-      
-      toast.success('Analysis completed successfully!');
     } catch (error) {
       console.error('Analysis error:', error);
-      toast.error(error instanceof Error ? error.message : 'Analysis failed. Please try again.');
+      toast.error('Failed to analyze image. Please try again.');
     } finally {
       setIsAnalyzing(false);
+      setAnalysisProgress(100);
     }
   };
 
