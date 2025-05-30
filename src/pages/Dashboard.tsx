@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cameraService } from '@/services/CameraService';
+import { imageProcessingService } from '@/services/ImageProcessingService';
 
 interface AnalysisResult {
   leafArea: number;
@@ -132,7 +133,6 @@ const Dashboard: React.FC = () => {
     try {
       setIsAnalyzing(true);
       setAnalysisProgress(0);
-      
       // Simulate analysis progress
       const interval = setInterval(() => {
         setAnalysisProgress(prev => {
@@ -145,40 +145,37 @@ const Dashboard: React.FC = () => {
         });
       }, 200);
 
-      // TODO: Implement actual analysis logic
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Mock analysis result with calibration details
+      // Use real image analysis logic
+      const result = await imageProcessingService.measureLeafArea(selectedImage);
       setAnalysisResult({
-        leafArea: 5.32,
+        leafArea: result.leafArea,
         disease: {
-          predicted_class: 'Pepper__bell___healthy',
-          confidence: 0.46
+          predicted_class: 'N/A', // Optionally call backend for real prediction
+          confidence: 0
         },
         measurements: {
-          perimeter: 12.5,
-          width: 3.2,
-          height: 4.1,
-          aspectRatio: 1.28
+          perimeter: result.leafPerimeter,
+          width: result.leafWidth,
+          height: result.leafHeight,
+          aspectRatio: result.leafAspectRatio
         },
         colorMetrics: {
-          averageGreen: 145,
-          averageRed: 85,
-          averageBlue: 65,
-          colorVariance: 0.15
+          averageGreen: result.leafColorMetrics.averageGreen,
+          averageRed: result.leafColorMetrics.averageRed,
+          averageBlue: result.leafColorMetrics.averageBlue,
+          colorVariance: result.leafColorMetrics.colorVariance
         },
         healthIndicators: {
-          colorUniformity: 0.85,
-          edgeRegularity: 0.92,
-          textureComplexity: 0.78
+          colorUniformity: result.leafHealthIndicators.colorUniformity,
+          edgeRegularity: result.leafHealthIndicators.edgeRegularity,
+          textureComplexity: result.leafHealthIndicators.textureComplexity
         },
         calibration: {
           referenceArea: parseFloat(referenceArea),
-          pixelRatio: 0.0042, // This would be calculated in real implementation
-          formula: "Leaf Area = (Pixel Count × Reference Area) / Reference Pixel Count"
+          pixelRatio: result.pixelToCmRatio,
+          formula: 'Leaf Area = (Pixel Count × Reference Area) / Reference Pixel Count'
         }
       });
-
       toast.success('Analysis completed successfully!');
     } catch (error) {
       toast.error('Analysis failed. Please try again.');
