@@ -147,12 +147,48 @@ const Dashboard: React.FC = () => {
 
       // Use real image analysis logic
       const result = await imageProcessingService.measureLeafArea(selectedImage);
+
+      // --- Disease Prediction API Call ---
+      let diseaseResult = { predicted_class: 'N/A', confidence: 0 };
+      try {
+        // Convert image to blob
+        let blob;
+        if (selectedImage.startsWith('data:')) {
+          // base64 data URL
+          const res = await fetch(selectedImage);
+          blob = await res.blob();
+        } else {
+          // file path or URL
+          const res = await fetch(selectedImage);
+          blob = await res.blob();
+        }
+        const formData = new FormData();
+        formData.append('file', blob, 'leaf.jpg');
+        // Call backend /predict endpoint
+        const predictRes = await fetch('/predict', {
+          method: 'POST',
+          body: formData
+        });
+        if (predictRes.ok) {
+          const data = await predictRes.json();
+          if (data && (data.predicted_class || data.class)) {
+            diseaseResult = {
+              predicted_class: data.predicted_class || data.class,
+              confidence: data.confidence !== undefined ? data.confidence : 0
+            };
+          }
+        } else {
+          // If backend returns error, try to parse error message
+          const errorData = await predictRes.json().catch(() => null);
+          toast.error(errorData?.detail || 'Disease prediction failed.');
+        }
+      } catch (err) {
+        toast.error('Disease prediction failed. Please try again.');
+      }
+
       setAnalysisResult({
         leafArea: result.leafArea,
-        disease: {
-          predicted_class: 'N/A', // Optionally call backend for real prediction
-          confidence: 0
-        },
+        disease: diseaseResult,
         measurements: {
           perimeter: result.leafPerimeter,
           width: result.leafWidth,
@@ -503,6 +539,9 @@ const Dashboard: React.FC = () => {
                           <h3 className="font-semibold text-slate-800 dark:text-slate-200 mb-2 text-sm sm:text-base">Disease Prediction</h3>
                           <p className="text-base sm:text-lg font-medium text-slate-900 dark:text-slate-100">
                             {analysisResult.disease.predicted_class}
+                          </p>
+                          <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-1">
+                            Confidence: {(analysisResult.disease.confidence * 100).toFixed(2)}%
                           </p>
                         </div>
 
