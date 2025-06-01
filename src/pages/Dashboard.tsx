@@ -18,8 +18,8 @@ import { AnalysisResult } from '@/types/analysis';
 interface DiseaseResult {
     predicted_class: string;
     confidence: number;
-  top_3_predictions?: Record<string, number>;
-  warning?: string;
+    top_3_predictions?: Record<string, number>;
+    warning?: string;
 }
 
 // Add this helper function at the top of the file, after the imports
@@ -238,6 +238,72 @@ const generatePrintContent = (analysisResult: AnalysisResult) => {
   `;
 };
 
+// Add this helper function after the interfaces
+const calculateAdditionalMetrics = (result: any) => {
+  // Calculate circularity
+  const circularity = (4 * Math.PI * result.leafArea) / (result.leafPerimeter * result.leafPerimeter);
+  
+  // Calculate color ratios
+  const redGreenRatio = result.leafColorMetrics.averageRed / result.leafColorMetrics.averageGreen;
+  const blueGreenRatio = result.leafColorMetrics.averageBlue / result.leafColorMetrics.averageGreen;
+  
+  // Calculate chlorophyll index
+  const chlorophyllIndex = (result.leafColorMetrics.averageGreen - result.leafColorMetrics.averageRed) / 
+                          (result.leafColorMetrics.averageGreen + result.leafColorMetrics.averageRed);
+  
+  // Calculate overall health score (weighted average)
+  const healthScore = (
+    result.leafHealthIndicators.colorUniformity * 0.4 +
+    result.leafHealthIndicators.edgeRegularity * 0.3 +
+    result.leafHealthIndicators.textureComplexity * 0.3
+  ) * 100; // Convert to percentage
+  
+  // Calculate stress level (0-100)
+  const stressLevel = Math.min(100, Math.max(0, 
+    (redGreenRatio * 40) + // Higher red/green ratio indicates stress
+    ((1 - result.leafHealthIndicators.colorUniformity) * 30) + // Lower color uniformity indicates stress
+    ((1 - result.leafHealthIndicators.edgeRegularity) * 30) // Lower edge regularity indicates stress
+  ));
+  
+  // Estimate nutrient content
+  const nitrogenContent = (result.leafColorMetrics.averageGreen / 255) * 100;
+  const chlorophyllContent = chlorophyllIndex * 100;
+  const waterContent = (result.leafColorMetrics.averageBlue / 255) * 100;
+  
+  // Estimate growth stage based on area and aspect ratio
+  let growthStage = 'Unknown';
+  let growthConfidence = 0;
+  
+  if (result.leafArea < 50) {
+    growthStage = 'Early Growth';
+    growthConfidence = 85;
+  } else if (result.leafArea < 100) {
+    growthStage = 'Mid Growth';
+    growthConfidence = 75;
+  } else {
+    growthStage = 'Mature';
+    growthConfidence = 80;
+  }
+  
+  return {
+    circularity,
+    redGreenRatio,
+    blueGreenRatio,
+    chlorophyllIndex,
+    healthScore,
+    stressLevel,
+    nutrientIndicators: {
+      nitrogenContent,
+      chlorophyllContent,
+      waterContent
+    },
+    growthStage: {
+      stage: growthStage,
+      confidence: growthConfidence
+    }
+  };
+};
+
 const Dashboard: React.FC = () => {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
@@ -341,160 +407,73 @@ const Dashboard: React.FC = () => {
       setIsAnalyzing(true);
       setAnalysisProgress(0);
 
-      // Simulate progress
+      // Faster progress simulation
       const progressInterval = setInterval(() => {
         setAnalysisProgress((prev) => {
           if (prev >= 90) {
             clearInterval(progressInterval);
             return prev;
           }
-          return prev + 10;
+          return prev + 30; // Faster progress updates
         });
-      }, 200);
+      }, 100); // Shorter interval
 
-      // Step 1: Measure leaf area
-      console.log('Starting leaf area measurement...');
-      const result = await imageProcessingService.measureLeafArea(selectedImage);
-      console.log('Leaf area measurement result:', result);
-
-      // Step 2: Disease Prediction
-      console.log('Starting disease prediction...');
-      let diseaseResult = {
-        predicted_class: 'N/A',
-        confidence: 0,
-        top_3_predictions: {},
-        warning: undefined
-      };
-
-      try {
-        // Convert image to blob
-        const response = await fetch(selectedImage);
-        const blob = await response.blob();
-        const file = new File([blob], 'leaf.jpg', { type: 'image/jpeg' });
-
-        // Check image size
-        if (file.size > API_CONFIG.MAX_FILE_SIZE) {
-          diseaseResult.warning = `Image size (${(file.size / (1024 * 1024)).toFixed(2)}MB) exceeds maximum limit of ${API_CONFIG.MAX_FILE_SIZE / (1024 * 1024)}MB for disease prediction. Please use a smaller image.`;
-          toast.warning(diseaseResult.warning);
-        } else {
-          // Check API health
-          console.log('Checking API health...');
+      // Run leaf area measurement and disease prediction in parallel
+      const [result, diseaseResult] = await Promise.all([
+        // Step 1: Measure leaf area
+        imageProcessingService.measureLeafArea(selectedImage),
+        
+        // Step 2: Disease Prediction
+        (async () => {
           try {
-            const healthCheck = await apiService.checkHealth();
-            console.log('API health check result:', healthCheck);
+            // Convert image to blob
+            const response = await fetch(selectedImage);
+            const blob = await response.blob();
+            const file = new File([blob], 'leaf.jpg', { type: 'image/jpeg' });
 
-            if (healthCheck.status !== 'healthy') {
-              throw new Error('API is not healthy');
+            // Check image size
+            if (file.size > API_CONFIG.MAX_FILE_SIZE) {
+              return {
+                predicted_class: 'N/A',
+                confidence: 0,
+                top_3_predictions: {},
+                warning: `Image size (${(file.size / (1024 * 1024)).toFixed(2)}MB) exceeds maximum limit of ${API_CONFIG.MAX_FILE_SIZE / (1024 * 1024)}MB for disease prediction. Please use a smaller image.`
+              };
             }
 
             // Make prediction
-            console.log('Sending image for prediction...');
             const prediction = await apiService.predictDisease(file);
-            console.log('Prediction result:', prediction);
-
-            diseaseResult = {
-              predicted_class: prediction.predicted_class || 'N/A',
-              confidence: prediction.confidence || 0,
-              top_3_predictions: prediction.top_3_predictions || {},
-              warning: prediction.warning
-            };
-
+            
             if (prediction.warning) {
-              console.warn('Prediction warning:', prediction.warning);
               toast.warning(prediction.warning);
             }
 
-            // Show success message if prediction is good
-            if (diseaseResult.confidence >= API_CONFIG.MIN_CONFIDENCE) {
-              const confidencePercent = (diseaseResult.confidence * 100).toFixed(2);
-              const message = `Disease detected: ${diseaseResult.predicted_class} (${confidencePercent}% confidence)`;
-              console.log('Prediction success:', message);
-              toast.success(message);
+            if (prediction.confidence >= API_CONFIG.MIN_CONFIDENCE) {
+              const confidencePercent = (prediction.confidence * 100).toFixed(2);
+              toast.success(`Disease detected: ${prediction.predicted_class} (${confidencePercent}% confidence)`);
             } else {
-              console.warn('Low confidence prediction:', diseaseResult);
               toast.warning('Low confidence prediction. Please try with a clearer image.');
             }
-          } catch (apiError) {
-            console.error('API error:', apiError);
-            const errorMessage = apiError instanceof Error ? apiError.message : 'Failed to connect to prediction service';
+
+            return prediction;
+          } catch (error) {
+            console.error('Disease prediction error:', error);
+            const errorMessage = error instanceof Error ? error.message : 'Failed to predict disease';
             toast.error(errorMessage);
-            diseaseResult.warning = errorMessage;
+            return {
+              predicted_class: 'N/A',
+              confidence: 0,
+              top_3_predictions: {},
+              warning: errorMessage
+            };
           }
-        }
-      } catch (error) {
-        console.error('Disease prediction error:', error);
-        const errorMessage = error instanceof Error ? error.message : 'Failed to predict disease';
-        toast.error(errorMessage);
-        diseaseResult.warning = errorMessage;
-      }
+        })()
+      ]);
+
+      // Calculate additional metrics
+      const additionalMetrics = calculateAdditionalMetrics(result);
 
       // Update analysis result
-      const calculateAdditionalMetrics = (result: any) => {
-        // Calculate circularity
-        const circularity = (4 * Math.PI * result.leafArea) / (result.leafPerimeter * result.leafPerimeter);
-        
-        // Calculate color ratios
-        const redGreenRatio = result.leafColorMetrics.averageRed / result.leafColorMetrics.averageGreen;
-        const blueGreenRatio = result.leafColorMetrics.averageBlue / result.leafColorMetrics.averageGreen;
-        
-        // Calculate chlorophyll index
-        const chlorophyllIndex = (result.leafColorMetrics.averageGreen - result.leafColorMetrics.averageRed) / 
-                                (result.leafColorMetrics.averageGreen + result.leafColorMetrics.averageRed);
-        
-        // Calculate overall health score (weighted average)
-        const healthScore = (
-          result.leafHealthIndicators.colorUniformity * 0.4 +
-          result.leafHealthIndicators.edgeRegularity * 0.3 +
-          result.leafHealthIndicators.textureComplexity * 0.3
-        );
-        
-        // Calculate stress level (0-100)
-        const stressLevel = Math.min(100, Math.max(0, 
-          (redGreenRatio * 40) + // Higher red/green ratio indicates stress
-          ((1 - result.leafHealthIndicators.colorUniformity) * 30) + // Lower color uniformity indicates stress
-          ((1 - result.leafHealthIndicators.edgeRegularity) * 30) // Lower edge regularity indicates stress
-        ));
-        
-        // Estimate nutrient content
-        const nitrogenContent = (result.leafColorMetrics.averageGreen / 255) * 100;
-        const chlorophyllContent = chlorophyllIndex * 100;
-        const waterContent = (result.leafColorMetrics.averageBlue / 255) * 100;
-        
-        // Estimate growth stage based on area and aspect ratio
-        let growthStage = 'Unknown';
-        let growthConfidence = 0;
-        
-        if (result.leafArea < 50) {
-          growthStage = 'Early Growth';
-          growthConfidence = 85;
-        } else if (result.leafArea < 100) {
-          growthStage = 'Mid Growth';
-          growthConfidence = 75;
-        } else {
-          growthStage = 'Mature';
-          growthConfidence = 80;
-        }
-        
-        return {
-          circularity,
-          redGreenRatio,
-          blueGreenRatio,
-          chlorophyllIndex,
-          healthScore,
-          stressLevel,
-          nutrientIndicators: {
-            nitrogenContent,
-            chlorophyllContent,
-            waterContent
-          },
-          growthStage: {
-            stage: growthStage,
-            confidence: growthConfidence
-          }
-        };
-      };
-
-      const additionalMetrics = calculateAdditionalMetrics(result);
       setAnalysisResult({
         leafArea: result.leafArea,
         disease: diseaseResult,
