@@ -1,4 +1,4 @@
-# LeafAI - Plant Disease Detection & Analysis System
+# LeafAI - Plant Leaf area and  Disease Detection & Analysis leaf System
 
 ## Live Demo
 🌐 [View Live Project](https://main.dqmj7bvu8h6wy.amplifyapp.com/)
