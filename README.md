@@ -1,7 +1,19 @@
 # LeafAI - Plant Disease Detection & Analysis System
 
+## Live Demo
+🌐 [View Live Project](https://main.dqmj7bvu8h6wy.amplifyapp.com/)
+
 ## Project Overview
-LeafAI is a comprehensive plant disease detection and leaf analysis system developed to assist farmers and agricultural researchers. The project was initiated in 2024 with the goal of creating an accessible tool for plant health monitoring and disease prevention.
+LeafAI is a comprehensive plant disease detection and leaf analysis system developed to assist farmers and agricultural researchers. The project focuses on precise leaf area measurement and detailed health analysis, providing accurate insights for plant care and disease prevention. Key features include:
+
+- **Precise Leaf Area Measurement**: Advanced image processing algorithms for accurate leaf area calculation
+- **Detailed Health Analysis**: Comprehensive analysis of leaf characteristics including:
+  - Color distribution analysis
+  - Texture pattern recognition
+  - Disease detection with confidence scoring
+  - Growth stage assessment
+- **Real-time Processing**: Instant analysis and results delivery
+- **Mobile-friendly Interface**: Accessible on any device for field use
 
 ## Development History
 - **January 2024**: Project inception and initial research
